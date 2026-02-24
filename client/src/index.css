@@ -1,68 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  color: #1f2342;
+  --bg-main: #f8faff;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-2: #ffffff;
+  --text-main: #1f2342;
+  --text-muted: #586089;
+  --border-soft: #d9e0ff;
+  --input-border: rgba(203, 213, 225, 0.9);
+  --input-bg: #ffffff;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+html.dark {
+  color-scheme: dark;
+  --bg-main: #0a122a;
+  --surface: rgba(18, 28, 61, 0.88);
+  --surface-2: #13204a;
+  --text-main: #e5e9ff;
+  --text-muted: #a9b4df;
+  --border-soft: #2b386f;
+  --input-border: #324078;
+  --input-bg: #111c44;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 5%, rgba(99, 102, 241, 0.14) 0%, transparent 36%),
+    radial-gradient(circle at 88% 0%, rgba(168, 85, 247, 0.12) 0%, transparent 38%),
+    radial-gradient(circle at 84% 70%, rgba(34, 211, 238, 0.12) 0%, transparent 40%),
+    var(--bg-main);
+  color: var(--text-main);
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+* {
+  box-sizing: border-box;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.font-display {
+  font-family: 'Sora', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.card-surface {
+  @apply rounded-2xl shadow-soft border backdrop-blur transition;
+  background: var(--surface);
+  border-color: var(--border-soft);
+}
+
+.input-base {
+  @apply w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100;
+  border-color: var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70;
+  background: linear-gradient(140deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 0 14px 26px -18px rgba(79, 70, 229, 0.8);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(140deg, #4338ca 0%, #6d28d9 100%);
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition;
+  border-color: var(--input-border);
+  background: var(--surface-2);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover {
+  @apply bg-brand-50 border-brand-200 text-brand-700;
+}
+
+.badge-base {
+  @apply inline-flex rounded-full px-2.5 py-1 text-xs font-semibold;
+}
+
+html.dark .text-slate-900 {
+  color: #eef2ff;
+}
+
+html.dark .text-slate-800 {
+  color: #d9e2ff;
+}
+
+html.dark .text-slate-700 {
+  color: #c5d0f8;
+}
+
+html.dark .text-slate-600 {
+  color: #aab7e8;
+}
+
+html.dark .text-slate-500 {
+  color: #8d9bd3;
+}
+
+html.dark .text-slate-400 {
+  color: #7283c4;
+}
+
+html.dark .bg-white {
+  background-color: #13204a;
+}
+
+html.dark .bg-slate-50 {
+  background-color: #172552;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #1d2d60;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200 {
+  border-color: #2b386f;
+}
+
+html.dark .hover\:bg-slate-50:hover {
+  background-color: #1e2f65;
 }
