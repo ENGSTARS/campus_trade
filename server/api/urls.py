@@ -1,4 +1,8 @@
-from django.urls import path
+from django.urls import path, include
+from django.contrib import admin
+from rest_framework import routers
+from api.views import ProfileViewSet
+from listings.views import ListingViewSet, CategoryViewSet
 from .views import (
     register,
     verify_email,
@@ -12,6 +16,12 @@ from .views import (
     password_reset_invalid,
     password_reset_sent
 )
+
+router = routers.DefaultRouter()
+router.register(r'profile', ProfileViewSet, basename='profile')
+router.register(r'listings', ListingViewSet, basename='listing')
+router.register(r'categories', CategoryViewSet, basename='category')
+
 urlpatterns = [
     path("register/", register, name="register_api"),
     path("verify-email/<str:uidb64>/<str:token>/", verify_email, name="verify_email"),
