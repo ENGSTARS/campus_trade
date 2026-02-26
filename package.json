@@ -1,0 +1,12 @@
+{
+  "name": "campus-trade",
+  "version": "1.0.0",
+  "scripts": {
+    "server": "python server/manage.py runserver",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently -n \"DJANGO,VITE\" -c \"blue,magenta\" \"npm run server\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

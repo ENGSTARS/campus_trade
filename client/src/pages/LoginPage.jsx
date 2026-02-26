@@ -1,3 +1,4 @@
+import { useState } from 'react' // 1. Import useState
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -7,6 +8,7 @@ import { loginSchema } from '@/utils/validators'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Eye, EyeOff } from 'lucide-react' // 2. Import icons
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -14,6 +16,9 @@ function LoginPage() {
   const { login } = useAuth()
   const { addToast } = useNotifications()
   const redirectTo = location.state?.from || '/'
+  
+  // 3. State for password visibility
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -28,9 +33,14 @@ function LoginPage() {
   })
 
   const onSubmit = async (values) => {
-    await login(values)
-    addToast({ type: 'success', message: 'Logged in successfully' })
-    navigate(redirectTo, { replace: true })
+    try {
+      await login(values)
+      addToast({ type: 'success', message: 'Logged in successfully' })
+      navigate(redirectTo, { replace: true })
+    } catch (error) {
+      // Error handling is usually handled within the login context, 
+      // but you can add local error handling here if needed.
+    }
   }
 
   return (
@@ -48,15 +58,29 @@ function LoginPage() {
           {...register('email')}
           error={errors.email?.message}
         />
-        <Input
-          label="Password"
-          type="password"
-          placeholder="Enter password"
-          {...register('password')}
-          error={errors.password?.message}
-        />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          Log In
+
+        {/* 4. Password field with toggle button */}
+        <div className="relative">
+          <Input
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter password"
+            className="pr-10"
+            {...register('password')}
+            error={errors.password?.message}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600 transition-colors"
+            tabIndex="-1"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+          {isSubmitting ? 'Logging in...' : 'Log In'}
         </Button>
       </form>
 
