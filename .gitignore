@@ -1,9 +1,42 @@
-server/.env
+# --- Byte-compiled / optimized / DLL files ---
+__pycache__/
+*.py[cod]
+*$py.class
 
-client/node_modules
-client/dist
-client/.DS_Store
+# --- Virtual Environments (Crucial) ---
+server/venv/
+server/env/
+ENV/
+
+# --- Database & Local Secrets ---
+server/.env
 client/.env
 client/.env.local
 client/.env.*.local
-client/*.log
+*.sqlite3
+
+node_modules
+
+# --- Node / client dependencies ---
+client/node_modules/
+client/dist/
+client/build/
+
+# --- Logs & Debugging ---
+*.log
+server/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS generated files ---
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# --- Media & Static (Optional) ---
+# Uncomment these if you don't want to push uploaded user images to GitHub
+# server/media/
+# server/static_root/
