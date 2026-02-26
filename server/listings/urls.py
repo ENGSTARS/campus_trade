@@ -1,14 +1,14 @@
-from django.conf import settings
-from django.conf.urls.static import static
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("api/listings/", views.listings_home),
-    path("api/listings/create/", views.create_listing),
-    path("api/listings/<int:listing_id>/edit/", views.edit_listing),
-    path("api/listings/<int:listing_id>/delete/", views.delete_listing),
+    path('',                        views.ListingListCreateView.as_view(),  name='listing-list-create'),
+    path('<int:pk>/',               views.ListingDetailView.as_view(),      name='listing-detail'),
+    path('<int:pk>/related/',       views.RelatedListingsView.as_view(),    name='listing-related'),
+    path('<int:pk>/wishlist/',      views.ToggleWishlistView.as_view(),     name='listing-wishlist'),
+    path('<int:pk>/report/',        views.ReportListingView.as_view(),      name='listing-report'),
+    path('<int:pk>/review/',        views.SubmitReviewView.as_view(),       name='listing-review'),
+    path('<int:pk>/order/',         views.CreateOrderView.as_view(),        name='listing-order'),
+    path('<int:pk>/offer/',         views.SubmitOfferView.as_view(),        name='listing-offer'),
+    path('<int:pk>/status/',        views.UpdateListingStatusView.as_view(),name='listing-status'),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 

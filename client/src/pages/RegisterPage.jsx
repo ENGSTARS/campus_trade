@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
@@ -8,10 +9,12 @@ import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
+import { Eye, EyeOff } from 'lucide-react'
 
 function RegisterPage() {
   const navigate = useNavigate()
   const { register: registerUser } = useAuth()
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -29,9 +32,25 @@ function RegisterPage() {
   })
 
   const onSubmit = async (values) => {
-    await registerUser(values)
-    navigate('/verify-success')
+    try {
+      await registerUser(values)
+      navigate('/verify-success')
+    } catch (error) {
+      console.error("Registration failed:", error)
+    }
   }
+
+  // Reusable toggle button component to keep the JSX clean
+  const ToggleIcon = () => (
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600 transition-colors"
+      tabIndex="-1" // Prevents tabbing into the button for better keyboard flow
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  )
 
   return (
     <Card className="p-6 sm:p-7">
@@ -42,6 +61,7 @@ function RegisterPage() {
 
       <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
         <Input label="Full Name" {...register('fullName')} error={errors.fullName?.message} />
+        
         <Input
           label="University Email"
           type="email"
@@ -49,21 +69,40 @@ function RegisterPage() {
           {...register('email')}
           error={errors.email?.message}
         />
+
         <Select
           label="Campus"
           {...register('campus')}
           options={CAMPUS_OPTIONS.map((campus) => ({ value: campus, label: campus }))}
           error={errors.campus?.message}
         />
-        <Input label="Password" type="password" {...register('password')} error={errors.password?.message} />
-        <Input
-          label="Confirm Password"
-          type="password"
-          {...register('confirmPassword')}
-          error={errors.confirmPassword?.message}
-        />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          Register
+
+        {/* Password Field */}
+        <div className="relative">
+          <Input 
+            label="Password" 
+            type={showPassword ? "text" : "password"} 
+            className="pr-10" // Prevents text from overlapping the icon
+            {...register('password')} 
+            error={errors.password?.message} 
+          />
+          <ToggleIcon />
+        </div>
+
+        {/* Confirm Password Field */}
+        <div className="relative">
+          <Input
+            label="Confirm Password"
+            type={showPassword ? "text" : "password"}
+            className="pr-10"
+            {...register('confirmPassword')}
+            error={errors.confirmPassword?.message}
+          />
+          <ToggleIcon />
+        </div>
+
+        <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating Account...' : 'Register'}
         </Button>
       </form>
 
