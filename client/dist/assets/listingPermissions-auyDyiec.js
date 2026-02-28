@@ -1,0 +1,1 @@
+function i(e,o){const a=o||{id:""},s=!!o,n=e.sellerId===a.id,t=e.status==="AVAILABLE",c=e.type==="SECOND_HAND",r=e.type==="NEW";return{isLoggedIn:s,isOwner:n,isAvailable:t,isSecondHand:c,isNew:r,canBuyOrOffer:s&&!n&&t,canMessageSeller:s&&!n}}export{i as g};
