@@ -284,6 +284,12 @@ function CreateListingPage() {
               error={errors.imageUrl?.message}
             />
           </div>
+          {/* Payment/Social Links */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input label="Payment Method Link (optional)" placeholder="e.g. PayPal, M-Pesa, etc." {...register('paymentLink')} />
+            <Input label="Facebook Link (optional)" placeholder="e.g. https://facebook.com/yourprofile" {...register('facebookLink')} />
+            <Input label="Instagram Link (optional)" placeholder="e.g. https://instagram.com/yourprofile" {...register('instagramLink')} />
+          </div>
 
           <div className="flex flex-wrap justify-between gap-2 pt-2">
             <div className="flex flex-wrap gap-2">

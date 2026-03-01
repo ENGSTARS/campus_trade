@@ -61,46 +61,22 @@ function RegisterPage() {
 
       <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
         <Input label="Full Name" {...register('fullName')} error={errors.fullName?.message} />
-        
-        <Input
-          label="University Email"
-          type="email"
-          placeholder="student@university.edu"
-          {...register('email')}
-          error={errors.email?.message}
-        />
-
-        <Select
-          label="Campus"
-          {...register('campus')}
-          options={CAMPUS_OPTIONS.map((campus) => ({ value: campus, label: campus }))}
-          error={errors.campus?.message}
-        />
-
+        <Input label="University Email" type="email" placeholder="student@university.edu" {...register('email')} error={errors.email?.message} />
+        <Select label="Campus" {...register('campus')} options={CAMPUS_OPTIONS.map((campus) => ({ value: campus, label: campus }))} error={errors.campus?.message} />
+        {/* Payment/Social Links */}
+        <Input label="Payment Method Link (optional)" placeholder="e.g. PayPal, M-Pesa, etc." {...register('paymentLink')} />
+        <Input label="Facebook Link (optional)" placeholder="e.g. https://facebook.com/yourprofile" {...register('facebookLink')} />
+        <Input label="Instagram Link (optional)" placeholder="e.g. https://instagram.com/yourprofile" {...register('instagramLink')} />
         {/* Password Field */}
         <div className="relative">
-          <Input 
-            label="Password" 
-            type={showPassword ? "text" : "password"} 
-            className="pr-10" // Prevents text from overlapping the icon
-            {...register('password')} 
-            error={errors.password?.message} 
-          />
+          <Input label="Password" type={showPassword ? "text" : "password"} className="pr-10" {...register('password')} error={errors.password?.message} />
           <ToggleIcon />
         </div>
-
         {/* Confirm Password Field */}
         <div className="relative">
-          <Input
-            label="Confirm Password"
-            type={showPassword ? "text" : "password"}
-            className="pr-10"
-            {...register('confirmPassword')}
-            error={errors.confirmPassword?.message}
-          />
+          <Input label="Confirm Password" type={showPassword ? "text" : "password"} className="pr-10" {...register('confirmPassword')} error={errors.confirmPassword?.message} />
           <ToggleIcon />
         </div>
-
         <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
           {isSubmitting ? 'Creating Account...' : 'Register'}
         </Button>

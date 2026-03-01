@@ -157,6 +157,12 @@ function ProfilePage() {
                 <p className="text-xs text-slate-500">
                   {listing.campus} | {listing.status}
                 </p>
+                {/* Business credentials */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {currentUser?.facebookLink && <a href={currentUser.facebookLink} target="_blank" rel="noopener" className="text-blue-600 text-xs">Facebook</a>}
+                  {currentUser?.instagramLink && <a href={currentUser.instagramLink} target="_blank" rel="noopener" className="text-pink-600 text-xs">Instagram</a>}
+                  {currentUser?.paymentLink && <a href={currentUser.paymentLink} target="_blank" rel="noopener" className="text-green-600 text-xs">Payment</a>}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button variant="secondary" size="sm" onClick={() => handleEditListing(listing.id)}>
                     Edit
