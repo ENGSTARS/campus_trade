@@ -97,10 +97,11 @@ function ListingDetailsPage() {
     addToast({ type: 'success', message: 'Offer sent to seller' })
   }
 
+  const [guestOrderOpen, setGuestOrderOpen] = useState(false)
   const handleOrder = async () => {
     if (!permissions) return
     if (!permissions.isLoggedIn) {
-      navigate('/login')
+      setGuestOrderOpen(true)
       return
     }
     if (!permissions.canBuyOrOffer) return
@@ -114,6 +115,15 @@ function ListingDetailsPage() {
     )
     await syncSellerThread(`Hi! I placed an order for "${resolvedListing.title}".`)
     addToast({ type: 'success', message: 'Order placed. You can now message the seller.' })
+  }
+
+  // Guest order modal
+  const handleGuestOrder = async (guestDetails) => {
+    // guestDetails: { name, email, phone, pickupLocation }
+    // You would send this to backend or seller
+    setGuestOrderOpen(false)
+    addToast({ type: 'success', message: 'Order placed. Seller will contact you for pickup.' })
+    await syncSellerThread(`Guest order: ${guestDetails.name}, ${guestDetails.email}, ${guestDetails.phone}, Pickup: ${guestDetails.pickupLocation}`)
   }
 
   const handleReport = async (values) => {
@@ -225,6 +235,32 @@ function ListingDetailsPage() {
       <OfferModal isOpen={offerOpen} onClose={() => setOfferOpen(false)} onSubmit={handleOffer} />
       <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} onSubmit={handleReport} />
       <ReviewModal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={handleReview} />
+      {guestOrderOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+            <h2 className="text-lg font-bold mb-2">Guest Order</h2>
+            <form className="space-y-3" onSubmit={e => {
+              e.preventDefault();
+              const form = e.target;
+              handleGuestOrder({
+                name: form.name.value,
+                email: form.email.value,
+                phone: form.phone.value,
+                pickupLocation: form.pickupLocation.value,
+              });
+            }}>
+              <input name="name" required placeholder="Full Name" className="input-base w-full" />
+              <input name="email" required type="email" placeholder="Email" className="input-base w-full" />
+              <input name="phone" required placeholder="Phone Number" className="input-base w-full" />
+              <input name="pickupLocation" required placeholder="Pickup Location" className="input-base w-full" />
+              <div className="flex gap-2 pt-2">
+                <button type="button" className="btn-secondary" onClick={() => setGuestOrderOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">Place Order</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

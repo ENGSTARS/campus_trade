@@ -62,48 +62,35 @@ function HomePage() {
       <section className="card-surface relative overflow-hidden bg-white/90 p-5 sm:p-6">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-brand-100/70 blur-3xl" />
         <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-cyan-100/70 blur-3xl" />
-        <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Verified Student Marketplace</p>
-          <h1 className="font-display mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-            Find Great Deals Near Your Campus
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Default campus filter is set to <strong>{filters.campus}</strong>. Search and narrow down listings instantly.
-          </p>
-          <div className="mt-4">
-            <SearchBar value={searchValue} onChange={setSearchValue} />
-          </div>
-
-          <div className="mt-4">
-            <NavLink to={isAuthenticated ? '/sell' : '/login'} className="btn-primary">
-              Post an Item
-            </NavLink>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              {filteredListings.length} listings
-            </span>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
-              Campus filter: {filters.campus}
-            </span>
+        <div className="relative space-y-4">
+          <h1 className="font-display text-2xl font-bold text-slate-900">CampusTrade Marketplace</h1>
+          <div className="flex flex-col items-center gap-4 w-full">
+            <div className="flex w-full items-center gap-3">
+              <SearchBar
+                value={searchValue}
+                onChange={setSearchValue}
+                onSearch={val => updateFilters({ query: val })}
+                className="w-full"
+              />
+              <NavLink to={isAuthenticated ? '/sell' : '/login'} className="btn-primary whitespace-nowrap">Post an Item</NavLink>
+            </div>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-2 mt-2">
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">{filteredListings.length} listings</span>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Campus: {filters.campus}</span>
+            </div>
           </div>
         </div>
       </section>
+      
+      <FilterSidebar filters={filters} onChange={updateFilters} onReset={resetFilters}/>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
-        <FilterSidebar filters={filters} onChange={updateFilters} onReset={resetFilters} />
+      <div className="mt-6">
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
           className="space-y-4"
         >
-          <div className="flex items-center justify-between rounded-2xl border border-brand-100/80 bg-white/80 px-4 py-3">
-            <p className="text-sm text-slate-600">
-              Showing <strong>{filteredListings.length}</strong> listings
-            </p>
-          </div>
           <ListingsGrid
             listings={paginatedItems}
             loading={isListingsLoading}

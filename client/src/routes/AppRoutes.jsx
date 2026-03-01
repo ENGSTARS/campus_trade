@@ -33,6 +33,7 @@ export function AppRoutes() {
           <Route path="/messages" element={<MessagingPage />} />
           <Route path="/saved" element={<SavedListingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/my-products" element={lazy(() => import('@/pages/MyProductsPage'))} />
           <Route path="/sell" element={<CreateListingPage />} />
           <Route path="/listings/:listingId/edit" element={<CreateListingPage />} />
         </Route>

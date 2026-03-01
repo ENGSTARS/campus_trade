@@ -5,64 +5,19 @@ import { CAMPUS_OPTIONS, CATEGORY_OPTIONS, CONDITION_OPTIONS, TYPE_OPTIONS } fro
 
 export function FilterSidebar({ filters, onChange, onReset }) {
   return (
-    <aside className="card-surface h-fit space-y-4 p-4 lg:sticky lg:top-24">
-      <div className="flex items-center justify-between">
+    <aside className="card-surface h-fit p-4 lg:sticky lg:top-[60px] z-20 bg-[#030812]">
+      <div className="flex items-center justify-between mb-2">
         <h2 className="font-display text-sm font-semibold text-slate-900">Filters</h2>
-        <Button variant="ghost" size="sm" onClick={onReset}>
-          Reset
-        </Button>
+        <Button variant="ghost" size="sm" onClick={onReset}>Reset</Button>
       </div>
-      <p className="text-xs text-slate-500">Refine by campus, category, condition, type, and budget.</p>
-
-      <Select
-        label="Campus"
-        value={filters.campus}
-        onChange={(event) => onChange({ campus: event.target.value })}
-        options={[{ value: 'all', label: 'All campuses' }, ...CAMPUS_OPTIONS.map((campus) => ({ value: campus, label: campus }))]}
-      />
-
-      <Select
-        label="Category"
-        value={filters.category}
-        onChange={(event) => onChange({ category: event.target.value })}
-        options={[{ value: 'all', label: 'All categories' }, ...CATEGORY_OPTIONS.map((item) => ({ value: item, label: item }))]}
-      />
-
-      <Select
-        label="Condition"
-        value={filters.condition}
-        onChange={(event) => onChange({ condition: event.target.value })}
-        options={[{ value: 'all', label: 'All conditions' }, ...CONDITION_OPTIONS.map((item) => ({ value: item, label: item }))]}
-      />
-
-      <Select
-        label="Type"
-        value={filters.type}
-        onChange={(event) => onChange({ type: event.target.value })}
-        options={[
-          { value: 'all', label: 'All types' },
-          ...TYPE_OPTIONS.map((item) => ({
-            value: item,
-            label: item === 'SECOND_HAND' ? 'Second Hand' : 'New',
-          })),
-        ]}
-      />
-
-      <Input
-        label="Min price"
-        type="number"
-        value={filters.minPrice}
-        onChange={(event) => onChange({ minPrice: event.target.value })}
-        placeholder="0"
-      />
-
-      <Input
-        label="Max price"
-        type="number"
-        value={filters.maxPrice}
-        onChange={(event) => onChange({ maxPrice: event.target.value })}
-        placeholder="500"
-      />
+      <div className="flex flex-wrap justify-center gap-3">
+        <Select label="Campus" value={filters.campus} onChange={e => onChange({ campus: e.target.value })} options={[{ value: 'all', label: 'All campuses' }, ...CAMPUS_OPTIONS.map(campus => ({ value: campus, label: campus }))]} className="w-fit" />
+        <Select label="Category" value={filters.category} onChange={e => onChange({ category: e.target.value })} options={[{ value: 'all', label: 'All categories' }, ...CATEGORY_OPTIONS.map(item => ({ value: item, label: item }))]} className="w-fit" />
+        <Select label="Condition" value={filters.condition} onChange={e => onChange({ condition: e.target.value })} options={[{ value: 'all', label: 'All conditions' }, ...CONDITION_OPTIONS.map(item => ({ value: item, label: item }))]} className="w-32" />
+        <Select label="Type" value={filters.type} onChange={e => onChange({ type: e.target.value })} options={[{ value: 'all', label: 'All types' }, ...TYPE_OPTIONS.map(item => ({ value: item, label: item === 'SECOND_HAND' ? 'Second Hand' : 'New' }))]} className="w-fit" />
+        <Input label="Min price" type="number" value={filters.minPrice} onChange={e => onChange({ minPrice: e.target.value })} placeholder="0" className="w-fit" />
+        <Input label="Max price" type="number" value={filters.maxPrice} onChange={e => onChange({ maxPrice: e.target.value })} placeholder="500" className="w-fit" />
+      </div>
     </aside>
   )
 }

@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import campusMark from '@/assets/campus-mark.svg'
+import { Footer } from '@/components/ui/Footer'
 
 export function MainLayout() {
   const { isAuthenticated, isAdmin, logout } = useAuth()
@@ -12,12 +13,12 @@ export function MainLayout() {
     { to: '/messages', label: 'Messages' },
     { to: '/saved', label: 'Saved' },
     { to: '/profile', label: 'Profile' },
-    { to: '/sell', label: 'Sell' },
+    { to: '/my-products', label: 'MyProducts' },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
   ]
 
   return (
-    <div className="min-h-screen bg-campus-gradient dark:bg-campus-gradient-dark">
+    <div className="min-h-screen bg-campus-gradient dark:bg-campus-gradient-dark flex flex-col">
       <header className="sticky top-0 z-30 border-b border-brand-100/60 bg-white/80 backdrop-blur-xl dark:border-[#2b386f] dark:bg-[#0f1838]/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <NavLink to="/" className="font-display flex items-center gap-2 text-xl font-black tracking-tight text-brand-700 dark:text-brand-200">
@@ -75,9 +76,10 @@ export function MainLayout() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 flex-1">
         <Outlet />
       </main>
+      <Footer />
     </div>
   )
 }
