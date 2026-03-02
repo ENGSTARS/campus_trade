@@ -82,9 +82,10 @@ function HomePage() {
         </div>
       </section>
       
-      <FilterSidebar filters={filters} onChange={updateFilters} onReset={resetFilters}/>
-
-      <div className="mt-6">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+        <div className="lg:sticky lg:top-24 h-fit">
+          <FilterSidebar filters={filters} onChange={updateFilters} onReset={resetFilters}/>
+        </div>
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
