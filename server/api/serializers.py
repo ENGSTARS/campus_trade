@@ -6,11 +6,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
     full_name = serializers.CharField(write_only=True, required=False)
+    bio = serializers.CharField(write_only=True, required=False)
+    campus = serializers.CharField(write_only=True, required=False)
     contact = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ["email", "password", "confirm_password", "full_name", "contact"]
+        fields = ["email", "password", "confirm_password", "full_name", "bio", "campus", "contact"]
 
     def validate(self, data):
         if data["password"] != data["confirm_password"]:
@@ -19,6 +21,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         full_name = validated_data.pop("full_name", "")
+        bio = validated_data.pop("bio", "")
+        campus = validated_data.pop("campus", "")
         contact = validated_data.pop("contact", "")
         validated_data.pop("confirm_password")
 
@@ -32,6 +36,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Create Profile manually (signals also run)
         profile = Profile.objects.get(user=user)
         profile.full_name = full_name
+        profile.bio = bio
+        profile.campus = campus
         profile.contact = contact
         profile.save()
 
@@ -39,9 +45,10 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     
 class ProfileSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(source="profile_picture", required=False)
     class Meta:
         model = Profile
-        fields = ["full_name", "profile_picture", "contact"]
+        fields = ["full_name", "bio", "campus", "avatar", "contact"]
         
         
 class TwoFASerializer(serializers.Serializer):

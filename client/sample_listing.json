@@ -1,0 +1,39 @@
+{
+  "title": "Sample High Quality Listing",
+  "description": "A sample listing for a high-end laptop, perfect for testing image sync and offline capabilities.",
+  "price": 1200.0,
+  "category": "Electronics",
+  "campus": "Main Campus",
+  "condition": "New",
+  "type": "Sale",
+  "status": "AVAILABLE",
+  "sellerId": 4,
+  "images": [
+    "https://i.ibb.co/album/sample1.jpg",
+    "https://i.ibb.co/album/sample2.jpg",
+    "https://i.ibb.co/album/sample3.jpg"
+  ],
+  "reviews": [
+    {
+      "reviewer_name": "Jane Doe",
+      "rating": 5,
+      "comment": "Amazing product, super fast!",
+      "created_at": "2026-03-01T10:00:00Z"
+    },
+    {
+      "reviewer_name": "John Smith",
+      "rating": 4,
+      "comment": "Great value for money.",
+      "created_at": "2026-03-02T12:00:00Z"
+    }
+  ],
+  "offers": [
+    {
+      "buyer": 2,
+      "amount": 1150.0,
+      "created_at": "2026-03-03T09:00:00Z"
+    }
+  ],
+  "bio": "This is a sample listing for testing purposes.",
+  "contact": "1234567890"
+}

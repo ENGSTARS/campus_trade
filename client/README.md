@@ -74,7 +74,7 @@ Firebase variables are optional unless you want real push notifications.
 npm run dev
 ```
 
-App runs at the Vite local URL (usually `http://localhost:5173`).
+App runs at the Vite local URL (usually `http://localfhost:5173`).
 
 ## Available Scripts
 
