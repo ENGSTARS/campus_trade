@@ -62,8 +62,14 @@ function HomePage() {
       <section className="card-surface relative overflow-hidden bg-white/90 p-5 sm:p-6">
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-brand-100/70 blur-3xl" />
         <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-cyan-100/70 blur-3xl" />
-        <div className="relative space-y-4">
-          <h1 className="font-display text-2xl font-bold text-slate-900">CampusTrade Marketplace</h1>
+        <div className="space-y-4 sticky top-[20px]">
+          <div className='flex justify-between'>
+            <h1 className="font-display text-2xl font-bold text-slate-900">CampusTrade Marketplace</h1>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-2 mt-2">
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">{filteredListings.length} listings</span>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Campus: {filters.campus}</span>
+            </div>
+          </div>
           <div className="flex flex-col items-center gap-4 w-full">
             <div className="flex w-full items-center gap-3">
               <SearchBar
@@ -74,10 +80,7 @@ function HomePage() {
               />
               <NavLink to={isAuthenticated ? '/sell' : '/login'} className="btn-primary whitespace-nowrap">Post an Item</NavLink>
             </div>
-            <div className="flex flex-col md:flex-row items-center justify-center gap-2 mt-2">
-              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">{filteredListings.length} listings</span>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Campus: {filters.campus}</span>
-            </div>
+            
           </div>
         </div>
       </section>

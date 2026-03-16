@@ -7,13 +7,15 @@ from django.dispatch import receiver
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=100, blank=True)
+    bio = models.TextField(blank=True)
+    campus = models.CharField(max_length=100, blank=True)
     profile_picture = models.ImageField(upload_to='profiles/', blank=True)
     contact = models.CharField(max_length=10, blank=True)
     def is_complete(self):
         return bool(self.full_name and self.profile_picture and self.contact)
 
     def __str__(self):
-        return self.user.email
+        return f"{self.user.email} ({self.full_name}, {self.campus})"
 
 # Automatically create a Profile when a User is created
 @receiver(post_save, sender=User)
