@@ -19,6 +19,8 @@ class Listing(models.Model):
     
     is_active = models.BooleanField(default=True) # For soft-delete
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='AVAILABLE')
+    quantity = models.PositiveIntegerField(default=1)
+    image_urls = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -40,9 +42,16 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Report(models.Model):
+    STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('Resolved', 'Resolved'),
+        ('Dismissed', 'Dismissed'),
+    ]
+
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name='reports')
     reporter = models.ForeignKey(User, on_delete=models.CASCADE)
     reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Order(models.Model):

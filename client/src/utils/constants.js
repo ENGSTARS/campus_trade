@@ -1,4 +1,5 @@
 export const CAMPUS_OPTIONS = [
+  'Main Campus',
   'North Campus',
   'South Campus',
   'Engineering Campus',

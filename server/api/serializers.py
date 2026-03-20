@@ -1,6 +1,37 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile
+from .models import Profile, UniversityEmail
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+import re
+
+UNIVERSITY_EMAIL_REGEX = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]*\.(edu|ac\.[a-z]{2,})$', re.IGNORECASE)
+
+class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['email'] = self.fields['username']
+        self.fields['email'].source = 'username'
+        del self.fields['username']
+
+    def validate(self, attrs):
+        email = attrs.get('email') or attrs.get('username') or self.initial_data.get('email')
+        if email:
+            attrs['username'] = email.lower()
+        data = super().validate(attrs)
+        profile = Profile.objects.get(user=self.user)
+        data['user'] = {
+            'id': self.user.id,
+            'email': self.user.email,
+            'role': 'admin' if self.user.is_superuser else 'student',
+            'isStaff': self.user.is_staff,
+            'isSuperuser': self.user.is_superuser,
+            'fullName': profile.full_name,
+            'bio': profile.bio,
+            'campus': profile.campus,
+            'contact': profile.contact,
+            'avatar': profile.profile_picture.url if getattr(profile, 'profile_picture', None) else '',
+        }
+        return data
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -15,6 +46,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ["email", "password", "confirm_password", "full_name", "bio", "campus", "contact"]
 
     def validate(self, data):
+        email = data["email"].strip().lower()
+        data["email"] = email
+
+        if not UNIVERSITY_EMAIL_REGEX.match(email):
+            raise serializers.ValidationError({"email": "Use a valid university email"})
+        approved_email = UniversityEmail.objects.filter(email__iexact=email).first()
+        if not approved_email:
+            raise serializers.ValidationError({"email": "You are not a university student"})
+        if approved_email.is_registered or User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({"email": "This university email is already registered"})
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError("Passwords do not match")
         return data
@@ -30,7 +71,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             username=validated_data["email"],
             email=validated_data["email"],
             password=validated_data["password"],
-            is_active=False
+            is_active=True
         )
 
         # Create Profile manually (signals also run)
@@ -40,6 +81,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         profile.campus = campus
         profile.contact = contact
         profile.save()
+
+        approved_email = UniversityEmail.objects.get(email__iexact=user.email)
+        approved_email.linked_user = user
+        approved_email.is_registered = True
+        if full_name and not approved_email.full_name:
+            approved_email.full_name = full_name
+        if campus and not approved_email.campus:
+            approved_email.campus = campus
+        approved_email.save()
 
         return user
     

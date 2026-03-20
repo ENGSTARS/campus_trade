@@ -35,6 +35,7 @@ export function ListingMeta({
         <Badge label={listing.condition} />
         <Badge label={listing.type} />
         <Badge label={listing.status} />
+        <Badge label={`${listing.quantity ?? 0} in stock`} className="bg-amber-100 text-amber-800" />
         {isOwner ? <Badge label="Your Listing" /> : null}
         <span className="text-xs text-slate-500">{listing.category}</span>
         <span className="text-xs text-slate-500">{listing.campus}</span>
@@ -45,6 +46,15 @@ export function ListingMeta({
         <p className="text-sm text-slate-700">{listing.seller.name}</p>
         <p className="text-xs text-slate-500">
           Rating {listing.seller.rating} | {listing.seller.transactions} transactions
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-sm font-semibold text-slate-800">Inventory</p>
+        <p className="text-sm text-slate-700">
+          {Number(listing.quantity ?? 0) > 0
+            ? `${listing.quantity} item${listing.quantity === 1 ? '' : 's'} available`
+            : 'Out of stock'}
         </p>
       </div>
 

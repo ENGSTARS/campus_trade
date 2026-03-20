@@ -5,7 +5,7 @@ const DEFAULT_FALLBACK_DELAY = Number(
 )
 
 // Errors that should always surface to the UI — never mask with mock data
-const ALWAYS_RETHROW_STATUSES = new Set([401, 403, 404, 422, 429])
+const ALWAYS_RETHROW_STATUSES = new Set([400, 401, 403, 404, 422, 429])
 
 export async function withFallback(apiCall, fallbackData, options = {}) {
   const { delay = DEFAULT_FALLBACK_DELAY, dedupeKey } = options
@@ -26,8 +26,7 @@ export async function withFallback(apiCall, fallbackData, options = {}) {
       // Always re-throw HTTP errors — only fall back on network failures
       if (ALWAYS_RETHROW_STATUSES.has(status)) throw error
       if (status >= 500) throw error
-      if (error?.response) throw error  // any other HTTP response
-
+      
       // Never serve mock data in production
       if (!import.meta.env.DEV) throw error
 
@@ -53,19 +52,3 @@ export async function withFallback(apiCall, fallbackData, options = {}) {
   if (dedupeKey) inflightRequests.set(dedupeKey, task)
   return task
 }
-// ```
-
-// ---
-
-// ## How It Now Behaves With Your Django Backend
-// ```
-// Scenario                          Before fix          After fix
-// ──────────────────────────────────────────────────────────────────
-// Backend running, request OK       ✅ real data        ✅ real data
-// Backend down / no network         ✅ mock data        ✅ mock data (dev only)
-// Django returns 401 expired JWT    ❌ mock data        ✅ throws → axiosClient
-//                                                          refresh interceptor fires
-// Django returns 403 forbidden      ❌ mock data        ✅ throws → UI shows error
-// Django returns 422 bad payload    ❌ mock data        ✅ throws → form shows errors
-// Django returns 500 server crash   ❌ mock data        ✅ throws → error boundary
-// Production build, backend down    ❌ mock data leak   ✅ throws → error page

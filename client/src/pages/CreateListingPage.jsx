@@ -24,6 +24,7 @@ const baseFormValues = {
   condition: CONDITION_OPTIONS[0],
   type: TYPE_OPTIONS[0],
   campus: CAMPUS_OPTIONS[0],
+  quantity: '1',
   imageUrl: '',
 }
 
@@ -36,6 +37,7 @@ function mapListingToFormValues(listing) {
     condition: listing.condition || CONDITION_OPTIONS[0],
     type: listing.type || TYPE_OPTIONS[0],
     campus: listing.campus || CAMPUS_OPTIONS[0],
+    quantity: String(listing.quantity ?? 1),
     imageUrl: listing.images?.[0] || '',
   }
 }
@@ -56,16 +58,20 @@ function CreateListingPage() {
   const [editingListing, setEditingListing] = useState(listingFromContext)
   const [isBootstrapping, setIsBootstrapping] = useState(isEditMode)
   const [loadError, setLoadError] = useState('')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(createListingSchema),
     defaultValues: baseFormValues,
   })
+  const imageUrlValue = watch('imageUrl')
 
   useEffect(() => {
     if (!isEditMode) {
@@ -143,6 +149,7 @@ function CreateListingPage() {
         description: values.description.trim(),
         price: Number(values.price),
         campus: values.campus,
+        quantity: Number(values.quantity),
         category: values.category,
         condition: values.condition,
         type: values.type,
@@ -162,6 +169,24 @@ function CreateListingPage() {
 
     addToast({ type: 'success', message: 'Listing posted successfully' })
     navigate(`/listings/${created.id}`)
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingImage(true)
+    try {
+      const data = await listingsApi.uploadImage(file)
+      const imageUrl = data?.imageUrl || ''
+      setValue('imageUrl', imageUrl, { shouldValidate: true, shouldDirty: true })
+      addToast({ type: 'success', message: 'Image uploaded successfully' })
+    } catch {
+      addToast({ type: 'error', message: 'Could not upload image' })
+    } finally {
+      setIsUploadingImage(false)
+      event.target.value = ''
+    }
   }
 
   const handleDelete = async () => {
@@ -244,6 +269,18 @@ function CreateListingPage() {
               {...register('price')}
               error={errors.price?.message}
             />
+            <Input
+              label="Quantity In Stock"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="1"
+              {...register('quantity')}
+              error={errors.quantity?.message}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Select
               label="Type"
               {...register('type')}
@@ -277,13 +314,35 @@ function CreateListingPage() {
               options={CAMPUS_OPTIONS.map((item) => ({ value: item, label: item }))}
               error={errors.campus?.message}
             />
-            <Input
-              label="Image URL (optional)"
-              placeholder="https://images.unsplash.com/..."
-              {...register('imageUrl')}
-              error={errors.imageUrl?.message}
-            />
+            <label className="flex w-full flex-col gap-1.5 text-sm text-slate-700">
+              <span className="font-medium">Listing Image</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="input-base"
+                onChange={handleImageUpload}
+                disabled={isUploadingImage}
+              />
+              <span className="text-xs text-slate-500">
+                {isUploadingImage ? 'Uploading to ImgBB...' : 'Choose an image file to upload.'}
+              </span>
+            </label>
           </div>
+
+          <Input
+            label="Hosted Image URL"
+            placeholder="Upload an image to fill this automatically"
+            {...register('imageUrl')}
+            value={imageUrlValue || ''}
+            readOnly
+            error={errors.imageUrl?.message}
+          />
+
+          {imageUrlValue ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <img src={imageUrlValue} alt="Listing preview" className="h-56 w-full object-cover" />
+            </div>
+          ) : null}
           {/* Payment/Social Links */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Payment Method Link (optional)" placeholder="e.g. PayPal, M-Pesa, etc." {...register('paymentLink')} />
@@ -307,8 +366,8 @@ function CreateListingPage() {
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
-                {isEditMode ? 'Save Changes' : 'Post Item'}
+              <Button type="submit" disabled={isSubmitting || isUploadingImage}>
+                {isUploadingImage ? 'Uploading image...' : isEditMode ? 'Save Changes' : 'Post Item'}
               </Button>
             </div>
           </div>

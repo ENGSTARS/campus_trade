@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Listing, ListingImage, Review, Report, Order, Offer
+from .models import Wishlist
 
 
 class SellerSerializer(serializers.Serializer):
@@ -22,31 +23,38 @@ class SellerSerializer(serializers.Serializer):
 class ListingSerializer(serializers.ModelSerializer):
     sellerId     = serializers.IntegerField(source='seller.id',   read_only=True)
     seller       = SellerSerializer(read_only=True)
-    images       = serializers.SerializerMethodField()
-    postedAt     = serializers.DateTimeField(source='posted_at',  read_only=True)
+    images       = serializers.ListField(
+        child=serializers.URLField(),
+        source='image_urls',
+        required=False,
+    )
+    postedAt     = serializers.DateTimeField(source='created_at', read_only=True)
     isWishlisted = serializers.SerializerMethodField()
 
     class Meta:
         model  = Listing
         fields = [
             'id', 'title', 'description', 'price',
-            'campus', 'category', 'condition', 'type', 'status',
+            'campus', 'category', 'condition', 'type', 'status', 'quantity',
             'sellerId', 'seller', 'images', 'postedAt', 'isWishlisted',
         ]
         read_only_fields = ['sellerId', 'seller', 'postedAt', 'isWishlisted']
 
-    def get_images(self, obj):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
         request = self.context.get('request')
-        return [
+        uploaded_images = [
             request.build_absolute_uri(img.image.url)
-            for img in obj.images.all()
-            if img.image
+            for img in instance.images.all()
+            if request and img.image
         ]
+        data['images'] = [*data.get('images', []), *uploaded_images]
+        return data
 
     def get_isWishlisted(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.wishlisted_by.filter(user=request.user).exists()
+            return Wishlist.objects.filter(listing=obj, user=request.user).exists()
         return False
 
 
@@ -56,7 +64,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     )
     class Meta:
         model  = Review
-        fields = ['id', 'rating', 'comment', 'reviewer_name', 'created_at']
+        fields = ['id', 'rating', 'content', 'reviewer_name', 'created_at']
         read_only_fields = ['reviewer', 'created_at']
 
 
@@ -71,13 +79,20 @@ class OrderSerializer(serializers.ModelSerializer):
     buyerId   = serializers.IntegerField(source='buyer.id',      read_only=True)
     sellerId  = serializers.IntegerField(source='seller.id',     read_only=True)
     item      = serializers.CharField(source='listing.title',    read_only=True)
+    status    = serializers.SerializerMethodField()
+    date      = serializers.DateTimeField(source='created_at', read_only=True)
 
     class Meta:
         model  = Order
         fields = ['id', 'listingId', 'buyerId', 'sellerId', 'item', 'amount', 'status', 'date']
 
+    def get_status(self, obj):
+        return 'Completed'
+
 
 class OfferSerializer(serializers.ModelSerializer):
+    message = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model  = Offer
         fields = ['id', 'amount', 'message']

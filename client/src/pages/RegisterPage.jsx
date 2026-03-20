@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useNotifications } from '@/context/NotificationContext'
 import { registerSchema } from '@/utils/validators'
 import { CAMPUS_OPTIONS } from '@/utils/constants'
 import { Card } from '@/components/ui/Card'
@@ -14,6 +15,7 @@ import { Eye, EyeOff } from 'lucide-react'
 function RegisterPage() {
   const navigate = useNavigate()
   const { register: registerUser } = useAuth()
+  const { addToast } = useNotifications()
   const [showPassword, setShowPassword] = useState(false)
 
   const {
@@ -34,9 +36,15 @@ function RegisterPage() {
   const onSubmit = async (values) => {
     try {
       await registerUser(values)
-      navigate('/verify-success')
+      addToast({ type: 'success', message: 'Registration successful. You can now log in.' })
+      navigate('/login')
     } catch (error) {
-      console.error("Registration failed:", error)
+      const message =
+        error?.response?.data?.email?.[0] ||
+        error?.response?.data?.email ||
+        error?.response?.data?.detail ||
+        'Registration failed'
+      addToast({ type: 'error', message })
     }
   }
 
@@ -61,7 +69,7 @@ function RegisterPage() {
 
       <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
         <Input label="Full Name" {...register('fullName')} error={errors.fullName?.message} />
-        <Input label="University Email" type="email" placeholder="student@university.edu" {...register('email')} error={errors.email?.message} />
+        <Input label="University Email" type="email" placeholder="student@campustrade.edu" {...register('email')} error={errors.email?.message} />
         <Select label="Campus" {...register('campus')} options={CAMPUS_OPTIONS.map((campus) => ({ value: campus, label: campus }))} error={errors.campus?.message} />
         {/* Payment/Social Links */}
         <Input label="Payment Method Link (optional)" placeholder="e.g. PayPal, M-Pesa, etc." {...register('paymentLink')} />

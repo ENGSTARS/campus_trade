@@ -3,9 +3,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.urls import reverse
-from django.core.mail import send_mail
+from django.utils.encoding import force_str
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -13,34 +12,64 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 
 from .models import Profile
-from .serializers import RegisterSerializer, ProfileSerializer
+from .serializers import RegisterSerializer, ProfileSerializer, EmailTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from listings.models import Order, Listing, Report
+from listings.serializers import OrderSerializer
+
+
+def build_user_payload(user, profile):
+    avatar_url = profile.profile_picture.url if getattr(profile, "profile_picture", None) else ""
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": "admin" if user.is_superuser else "student",
+        "isStaff": user.is_staff,
+        "isSuperuser": user.is_superuser,
+        "fullName": profile.full_name,
+        "bio": profile.bio,
+        "campus": profile.campus,
+        "contact": profile.contact,
+        "avatar": avatar_url,
+    }
+
+
+def build_admin_user_payload(user, profile):
+    active_listings = Listing.objects.filter(seller=user, is_active=True).count()
+    inventory_units = sum(Listing.objects.filter(seller=user, is_active=True).values_list('quantity', flat=True))
+    sold_out_listings = Listing.objects.filter(seller=user, is_active=True, quantity=0).count()
+    return {
+        **build_user_payload(user, profile),
+        "accountStatus": "Suspended" if not user.is_active else "Active",
+        "dateJoined": user.date_joined,
+        "lastLogin": user.last_login,
+        "activeListings": active_listings,
+        "inventoryUnits": inventory_units,
+        "soldOutListings": sold_out_listings,
+    }
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
+
+
+def ensure_admin(user):
+    return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
 
 # --- REGISTRATION ---
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register(request):
-    """
-    API view to register a new user and send verification email.
-    """
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        
-        # Generate verification link
-        token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        verify_url = reverse("verify_email", kwargs={"uidb64": uid, "token": token})
-        verify_link = request.build_absolute_uri(verify_url)
-
-        send_mail(
-            subject="Verify your email",
-            message=f"Click this link to verify your account:\n{verify_link}",
-            from_email="bazu7642@gmail.com",
-            recipient_list=[user.email],
-            fail_silently=False,
+        profile = Profile.objects.get(user=user)
+        return Response(
+            {
+                "message": "Registration successful. You can now log in.",
+                "user": build_user_payload(user, profile),
+            },
+            status=status.HTTP_201_CREATED,
         )
-
-        return Response({"message": "User registered. Check email to verify."}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # --- LOGIN (Direct JWT) ---
@@ -66,7 +95,7 @@ def login_view(request):
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "profile_complete": profile.is_complete(),
-            "user": {"id": user.id, "email": user.email}
+            "user": build_user_payload(user, profile),
         }, status=status.HTTP_200_OK)
     
     return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -77,21 +106,155 @@ def login_view(request):
 def public_profile(request, pk):
     user = get_object_or_404(User, pk=pk)
     profile = get_object_or_404(Profile, user=user)
-    serializer = ProfileSerializer(profile)
-    return Response(serializer.data)
+    return Response({"user": build_user_payload(user, profile)})
 
 @api_view(["GET", "PUT"])
 @permission_classes([IsAuthenticated])
 def profile_setup(request):
     profile = Profile.objects.get(user=request.user)
     if request.method == "GET":
-        return Response(ProfileSerializer(profile).data)
+        return Response({"user": build_user_payload(request.user, profile)})
     
     serializer = ProfileSerializer(profile, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
-        return Response({"message": "Profile updated"})
+        return Response({
+            "message": "Profile updated",
+            "user": build_user_payload(request.user, profile),
+        })
     return Response(serializer.errors, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def profile_transactions(request):
+    items = Order.objects.filter(buyer=request.user) | Order.objects.filter(seller=request.user)
+    items = items.order_by("-created_at")
+    serializer = OrderSerializer(items, many=True)
+    return Response({"items": serializer.data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_stats(request):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    today = timezone.now().date()
+    return Response({
+        "totalUsers": User.objects.count(),
+        "activeListings": Listing.objects.filter(is_active=True).count(),
+        "reportsOpen": Report.objects.filter(status='Open').count(),
+        "ordersToday": Order.objects.filter(created_at__date=today).count(),
+        "totalInventoryUnits": sum(Listing.objects.filter(is_active=True).values_list('quantity', flat=True)),
+        "soldOutListings": Listing.objects.filter(is_active=True, quantity=0).count(),
+        "lowStockListings": Listing.objects.filter(is_active=True, quantity__gt=0, quantity__lte=3).count(),
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_reports(request):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    items = Report.objects.select_related('listing', 'reporter__profile').order_by('-created_at')
+    return Response({
+        "items": [
+            {
+                "id": report.id,
+                "listingId": report.listing_id,
+                "listingTitle": report.listing.title,
+                "reason": report.reason,
+                "reportedBy": {
+                    "id": report.reporter_id,
+                    "name": report.reporter.profile.full_name or report.reporter.email,
+                },
+                "createdAt": report.created_at,
+                "status": report.status,
+            }
+            for report in items
+        ]
+    })
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def admin_update_report(request, report_id):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    report = get_object_or_404(Report, pk=report_id)
+    next_status = request.data.get('status')
+    allowed = {choice[0] for choice in Report.STATUS_CHOICES}
+    if next_status not in allowed:
+        return Response({"error": f"Invalid status. Choose from: {sorted(allowed)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    report.status = next_status
+    report.save(update_fields=['status'])
+    return Response({"success": True, "id": report.id, "status": report.status})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_users(request):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    users = User.objects.select_related('profile').filter(is_superuser=False).order_by('id')
+    return Response({
+        "items": [
+            {
+                "id": user.id,
+                "name": user.profile.full_name or user.email,
+                "email": user.email,
+                "status": 'Suspended' if not user.is_active else 'Active',
+            }
+            for user in users
+        ]
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_user_detail(request, user_id):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, pk=user_id)
+    profile = get_object_or_404(Profile, user=user)
+    return Response({"user": build_admin_user_payload(user, profile)})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def admin_suspend_user(request, user_id):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, pk=user_id)
+    if user.is_superuser:
+        return Response({"error": "Superusers cannot be suspended."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.is_active = False
+    user.save(update_fields=['is_active'])
+    return Response({"success": True})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def admin_delete_user(request, user_id):
+    if not ensure_admin(request.user):
+        return Response({"detail": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, pk=user_id)
+    if user == request.user:
+        return Response({"error": "You cannot delete your own admin account."}, status=status.HTTP_400_BAD_REQUEST)
+    if user.is_superuser:
+        return Response({"error": "Superusers cannot be deleted."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.delete()
+    return Response({"success": True})
 
 # --- EMAIL VERIFY ---
 @api_view(["GET"])

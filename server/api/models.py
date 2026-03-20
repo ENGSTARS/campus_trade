@@ -17,6 +17,18 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.email} ({self.full_name}, {self.campus})"
 
+
+class UniversityEmail(models.Model):
+    email = models.EmailField(unique=True)
+    full_name = models.CharField(max_length=100, blank=True)
+    campus = models.CharField(max_length=100, blank=True)
+    linked_user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
+    is_registered = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.email
+
 # Automatically create a Profile when a User is created
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):

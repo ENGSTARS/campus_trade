@@ -16,7 +16,6 @@ npm run dev
 
 * **client:** `http://localhost:5173` (Magenta logs)
 * **server API:** `http://localhost:8000` (Blue logs)
-* **Django Admin:** `http://localhost:8000/admin`
 
 ---
 
@@ -85,6 +84,7 @@ DB_USER=postgres
 DB_PASSWORD=your_postgres_password
 DB_HOST=localhost
 DB_PORT=5432
+IMGBB_API_KEY=your_imgbb_api_key
 
 ```
 

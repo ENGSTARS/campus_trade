@@ -1,9 +1,14 @@
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+django.setup()
+
 from django.contrib.auth.models import User
 from api.models import Profile
 
 # Create a test user
 user, created = User.objects.get_or_create(
-    username='testuser',
+    username='testuser@example.com',
     email='testuser@example.com',
     defaults={'is_active': True}
 )

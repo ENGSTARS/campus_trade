@@ -2,11 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { listingsApi } from '@/api/listingsApi'
 import { profileApi } from '@/api/profileApi'
 import { useAuth } from '@/context/AuthContext'
-import { CAMPUS_OPTIONS } from '@/utils/constants'
-
 const AppContext = createContext(null)
 
-const defaultCampus = localStorage.getItem('campustrade-campus') || CAMPUS_OPTIONS[0]
+const defaultCampus = 'all'
 const WISHLIST_STORAGE_KEY = 'campustrade-wishlist-by-user'
 
 function readWishlistStore() {
@@ -187,12 +185,17 @@ export function AppProvider({ children }) {
     if (!currentListing) return null
     if (currentListing.sellerId !== currentUser?.id) return null
 
-    const nextListing = { ...currentListing, ...patch }
+    const optimisticListing = { ...currentListing, ...patch }
     setListings((previous) =>
       previous.map((listing) => (listing.id === listingId ? { ...listing, ...patch } : listing)),
     )
-    await listingsApi.updateListing(listingId, patch)
-    return nextListing
+
+    const response = await listingsApi.updateListing(listingId, patch)
+    const updatedListing = response?.item ? { ...currentListing, ...response.item } : optimisticListing
+    setListings((previous) =>
+      previous.map((listing) => (listing.id === listingId ? { ...listing, ...updatedListing } : listing)),
+    )
+    return updatedListing
   }
 
   const updateListingStatus = async (listingId, status) => {
@@ -200,10 +203,26 @@ export function AppProvider({ children }) {
     if (!currentListing) return false
     if (currentListing.sellerId !== currentUser?.id) return false
 
+    const optimisticPatch =
+      status === 'SOLD' ? { status, quantity: 0 } : { status }
+
     setListings((previous) =>
-      previous.map((listing) => (listing.id === listingId ? { ...listing, status } : listing)),
+      previous.map((listing) => (listing.id === listingId ? { ...listing, ...optimisticPatch } : listing)),
     )
-    await listingsApi.updateListingStatus(listingId, status)
+
+    const response = await listingsApi.updateListingStatus(listingId, status)
+    setListings((previous) =>
+      previous.map((listing) =>
+        listing.id === listingId
+          ? {
+              ...listing,
+              status: response?.status || status,
+              quantity:
+                typeof response?.quantity === 'number' ? response.quantity : listing.quantity,
+            }
+          : listing,
+      ),
+    )
     return true
   }
 
@@ -220,13 +239,10 @@ export function AppProvider({ children }) {
   const createListing = async (payload, user) => {
     if (!user?.id) return null
 
-    const listingId = `l-${Date.now()}`
     const imageUrl =
       payload.imageUrl ||
       'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=900&q=80'
-
-    const nextListing = {
-      id: listingId,
+    const normalizedPayload = {
       title: payload.title.trim(),
       description: payload.description.trim(),
       price: Number(payload.price),
@@ -234,9 +250,15 @@ export function AppProvider({ children }) {
       category: payload.category,
       condition: payload.condition,
       type: payload.type,
-      status: 'AVAILABLE',
-      sellerId: user.id,
+      quantity: Number(payload.quantity),
       images: [imageUrl],
+    }
+
+    const nextListing = {
+      id: `l-${Date.now()}`,
+      ...normalizedPayload,
+      status: normalizedPayload.quantity === 0 ? 'SOLD' : 'AVAILABLE',
+      sellerId: user.id,
       seller: {
         id: user.id,
         name: user.fullName || 'Student Seller',
@@ -248,8 +270,19 @@ export function AppProvider({ children }) {
     }
 
     setListings((previous) => [nextListing, ...previous])
-    await listingsApi.createListing(nextListing)
-    return nextListing
+    const response = await listingsApi.createListing(normalizedPayload)
+    const createdListing = response?.item
+      ? {
+          ...nextListing,
+          ...response.item,
+          images: response.item.images || nextListing.images,
+          seller: response.item.seller || nextListing.seller,
+        }
+      : nextListing
+    setListings((previous) =>
+      previous.map((listing) => (listing.id === nextListing.id ? createdListing : listing)),
+    )
+    return createdListing
   }
 
   const createOrderForListing = async (listing, user) => {
@@ -270,11 +303,21 @@ export function AppProvider({ children }) {
     }
 
     setTransactions((previous) => [nextTransaction, ...previous])
+    const response = await listingsApi.createOrder(listing.id)
     setListings((previous) =>
-      previous.map((item) => (item.id === listing.id ? { ...item, status: 'SOLD' } : item)),
+      previous.map((item) =>
+        item.id === listing.id
+          ? {
+              ...item,
+              quantity:
+                typeof response?.quantity === 'number'
+                  ? response.quantity
+                  : Math.max(0, Number(item.quantity ?? 1) - 1),
+              status: response?.status || item.status,
+            }
+          : item,
+      ),
     )
-
-    await listingsApi.createOrder(listing.id)
     return nextTransaction
   }
 

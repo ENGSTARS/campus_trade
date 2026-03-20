@@ -54,7 +54,7 @@ function LoginPage() {
         <Input
           label="University Email"
           type="email"
-          placeholder="student@university.edu"
+          placeholder="student@campustrade.edu"
           {...register('email')}
           error={errors.email?.message}
         />

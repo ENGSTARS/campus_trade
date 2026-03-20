@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('upload-image/',            views.ListingImageUploadView.as_view(), name='listing-image-upload'),
+    path('mine/',                    views.MyListingsView.as_view(),         name='listing-mine'),
     path('',                        views.ListingListCreateView.as_view(),  name='listing-list-create'),
     path('<int:pk>/',               views.ListingDetailView.as_view(),      name='listing-detail'),
     path('<int:pk>/related/',       views.RelatedListingsView.as_view(),    name='listing-related'),

@@ -4,27 +4,30 @@ import { mockAdminUsers, mockReports } from '@/utils/mockData'
 
 export const adminApi = {
   getStats() {
-    return withFallback(() => axiosClient.get('/admin/stats'), {
+    return withFallback(() => axiosClient.get('/admin/stats/'), {
       totalUsers: 2480,
       activeListings: 812,
+      totalInventoryUnits: 1964,
+      lowStockListings: 39,
+      soldOutListings: 57,
       reportsOpen: 16,
       ordersToday: 31,
     }, { dedupeKey: 'admin:stats' })
   },
   getReports() {
-    return withFallback(() => axiosClient.get('/admin/reports'), { items: mockReports }, { dedupeKey: 'admin:reports' })
+    return withFallback(() => axiosClient.get('/admin/reports/'), { items: mockReports }, { dedupeKey: 'admin:reports' })
   },
   getUsers() {
-    return withFallback(() => axiosClient.get('/admin/users'), { items: mockAdminUsers }, { dedupeKey: 'admin:users' })
+    return withFallback(() => axiosClient.get('/admin/users/'), { items: mockAdminUsers }, { dedupeKey: 'admin:users' })
   },
   suspendUser(userId) {
-    return withFallback(() => axiosClient.post(`/admin/users/${userId}/suspend`), { success: true })
+    return withFallback(() => axiosClient.post(`/admin/users/${userId}/suspend/`), { success: true })
   },
   deleteUser(userId) {
-    return withFallback(() => axiosClient.delete(`/admin/users/${userId}`), { success: true })
+    return withFallback(() => axiosClient.delete(`/admin/users/${userId}/`), { success: true })
   },
   updateReportStatus(reportId, status) {
-    return withFallback(() => axiosClient.patch(`/admin/reports/${reportId}`, { status }), {
+    return withFallback(() => axiosClient.patch(`/admin/reports/${reportId}/`, { status }), {
       success: true,
       id: reportId,
       status,
