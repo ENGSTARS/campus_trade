@@ -1,7 +1,7 @@
 export function formatPrice(price) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'Ksh',
     maximumFractionDigits: 0,
   }).format(price)
 }
