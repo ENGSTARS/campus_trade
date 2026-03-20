@@ -1,11 +1,9 @@
 export const CAMPUS_OPTIONS = [
-  'School of Computing',
-  'School of Business',
-  'School of Technology',
-  'School of Agriculture',
-  'School of Engineering',
-  'School of Pure and Applied Sciences',
- 
+  'Main Campus',
+  'North Campus',
+  'South Campus',
+  'Engineering Campus',
+  'Business Campus',
 ]
 
 export const CATEGORY_OPTIONS = [

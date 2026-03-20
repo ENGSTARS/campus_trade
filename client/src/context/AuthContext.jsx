@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
       user,
       isLoading,
       isAuthenticated: Boolean(user),
-      isAdmin: user?.role === 'admin' || user?.email?.includes('admin'),
+      isAdmin: Boolean(user?.isSuperuser || user?.isStaff || user?.role === 'admin'),
       login,
       register,
       logout,

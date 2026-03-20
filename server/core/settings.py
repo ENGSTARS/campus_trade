@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,13 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-f@(y_n)o*0l&uz7g=nl^ge&we6k=ch&u5pqh@1vuw$8yxq2y^-'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
 ALLOWED_HOSTS = []
 
 # core/settings.py
-APPEND_SLASH = False
+APPEND_SLASH = True
 # Application definition
 
 INSTALLED_APPS = [
@@ -55,7 +53,22 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-campus',
+]
 
 
 ROOT_URLCONF = 'core.urls'
@@ -81,11 +94,27 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# core/settings.py
 from decouple import config
 
+
+def read_debug_flag():
+    raw_value = os.getenv('DEBUG')
+    if raw_value is None:
+        try:
+            return config('DEBUG', default=True, cast=bool)
+        except ValueError:
+            return True
+
+    normalized = str(raw_value).strip().lower()
+    if normalized in {'1', 'true', 'yes', 'on', 'debug', 'dev', 'development'}:
+        return True
+    if normalized in {'0', 'false', 'no', 'off', 'release', 'prod', 'production'}:
+        return False
+    return True
+
+
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = read_debug_flag()
 
 DATABASES = {
     'default': {
@@ -153,15 +182,17 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ),
-    'DEFAULT_THROTTLE_CLASSES': [
+    'DEFAULT_THROTTLE_CLASSES': []
+    if DEBUG
+    else [
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.AnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'user': '10/minute',
-        'anon': '5/minute',
+        'user': '200/minute' if DEBUG else '60/minute',
+        'anon': '100/minute' if DEBUG else '30/minute',
         'password_reset': '3/hour',
-        'login': '20/minute'
+        'login': '60/minute' if DEBUG else '20/minute'
     }
 }
 

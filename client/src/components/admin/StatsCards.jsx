@@ -4,12 +4,15 @@ export function StatsCards({ stats }) {
   const items = [
     { key: 'totalUsers', label: 'Total Users' },
     { key: 'activeListings', label: 'Active Listings' },
+    { key: 'totalInventoryUnits', label: 'Inventory Units' },
+    { key: 'lowStockListings', label: 'Low Stock' },
+    { key: 'soldOutListings', label: 'Sold Out' },
     { key: 'reportsOpen', label: 'Open Reports' },
     { key: 'ordersToday', label: 'Orders Today' },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
       {items.map((item) => (
         <Card key={item.key} className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-slate-500">{item.label}</p>

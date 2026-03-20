@@ -1,0 +1,68 @@
+[
+  {
+    "title": "Introduction to Algorithms, 3rd Edition",
+    "description": "The classic textbook for algorithms. Barely used, in excellent condition. A must-have for any computer science student.",
+    "price": 45.00,
+    "category": "Books",
+    "campus": "Main Campus",
+    "condition": "Used - Like New",
+    "type": "Sale",
+    "status": "AVAILABLE",
+    "reviews": [
+      {
+        "rating": 5,
+        "comment": "Great book, fair price, and quick exchange. Highly recommend this seller."
+      }
+    ],
+    "offers": [
+      {
+        "amount": 40.00
+      }
+    ]
+  },
+  {
+    "title": "Acoustic Guitar - Yamaha F310",
+    "description": "Well-maintained acoustic guitar, perfect for beginners. Comes with a soft case and a few picks. Selling because I upgraded.",
+    "price": 120.00,
+    "category": "Musical Instruments",
+    "campus": "Main Campus",
+    "condition": "Used - Good",
+    "type": "Sale",
+    "status": "AVAILABLE",
+    "reviews": [],
+    "offers": []
+  },
+  {
+    "title": "Mini Fridge - 4L Capacity",
+    "description": "Small mini-fridge, great for dorm rooms. Can hold a 6-pack of cans. In perfect working condition.",
+    "price": 25.00,
+    "category": "Appliances",
+    "campus": "Main Campus",
+    "condition": "Used - Good",
+    "type": "Sale",
+    "status": "AVAILABLE",
+    "reviews": [
+      {
+        "rating": 4,
+        "comment": "Works as described. A bit of cosmetic wear but functions perfectly."
+      }
+    ],
+    "offers": [
+      {
+        "amount": 20.00
+      }
+    ]
+  },
+  {
+    "title": "Scientific Calculator - TI-84 Plus",
+    "description": "Required for many math and science courses. In great condition, with a new set of batteries.",
+    "price": 80.00,
+    "category": "Electronics",
+    "campus": "Main Campus",
+    "condition": "Used - Very Good",
+    "type": "Sale",
+    "status": "AVAILABLE",
+    "reviews": [],
+    "offers": []
+  }
+]

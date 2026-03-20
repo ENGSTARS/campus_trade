@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/utils/formatters'
+import { Link } from 'react-router-dom'
 
 export function ReportsTable({ reports, onResolve, onDismiss }) {
   return (
@@ -24,13 +25,23 @@ export function ReportsTable({ reports, onResolve, onDismiss }) {
               <tr key={report.id} className="border-t border-slate-100">
                 <td className="py-2 pr-4 text-slate-700">{report.listingTitle}</td>
                 <td className="py-2 pr-4 text-slate-700">{report.reason}</td>
-                <td className="py-2 pr-4 text-slate-600">{report.reportedBy}</td>
+                <td className="py-2 pr-4 text-slate-600">{report.reportedBy.name}</td>
                 <td className="py-2 pr-4 text-slate-500">{formatDate(report.createdAt)}</td>
                 <td className="py-2">
                   <Badge label={report.status} />
                 </td>
                 <td className="py-2">
                   <div className="flex flex-wrap gap-2">
+                    <Link to={`/listings/${report.listingId}`}>
+                      <Button variant="secondary" size="sm">
+                        View Listing
+                      </Button>
+                    </Link>
+                    <Link to={`/profile/${report.reportedBy.id}`}>
+                      <Button variant="secondary" size="sm">
+                        View Reporter
+                      </Button>
+                    </Link>
                     <Button
                       variant="secondary"
                       size="sm"

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Link } from 'react-router-dom'
 
 export function UserManagementTable({ users, onSuspend, onDelete }) {
   return (
@@ -26,6 +27,11 @@ export function UserManagementTable({ users, onSuspend, onDelete }) {
                 </td>
                 <td className="py-2">
                   <div className="flex flex-wrap gap-2">
+                    <Link to={`/profile/${user.id}`}>
+                      <Button variant="secondary" size="sm">
+                        View Profile
+                      </Button>
+                    </Link>
                     <Button variant="secondary" size="sm" onClick={() => onSuspend(user.id)}>
                       Suspend
                     </Button>

@@ -8,8 +8,10 @@ const HomePage = lazy(() => import('@/pages/HomePage'))
 const ListingDetailsPage = lazy(() => import('@/pages/ListingDetailsPage'))
 const MessagingPage = lazy(() => import('@/pages/MessagingPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
+const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage'))
 const SavedListingsPage = lazy(() => import('@/pages/SavedListingsPage'))
 const CreateListingPage = lazy(() => import('@/pages/CreateListingPage'))
+const MyProductsPage = lazy(() => import('@/pages/MyProductsPage'))
 const AdminDashboardPage = lazy(() => import('@/pages/AdminDashboardPage'))
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'))
@@ -27,13 +29,14 @@ export function AppRoutes() {
 
       <Route element={<MainLayout />}>
         <Route index element={<HomePage />} />
-        <Route path="/listings/:listingId" element={<ListingDetailsPage />} />
+        <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
         <Route element={<ProtectedRoute />}>
+          <Route path="/listings/:listingId" element={<ListingDetailsPage />} />
           <Route path="/messages" element={<MessagingPage />} />
           <Route path="/saved" element={<SavedListingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/my-products" element={lazy(() => import('@/pages/MyProductsPage'))} />
+          <Route path="/my-products" element={<MyProductsPage />} />
           <Route path="/sell" element={<CreateListingPage />} />
           <Route path="/listings/:listingId/edit" element={<CreateListingPage />} />
         </Route>

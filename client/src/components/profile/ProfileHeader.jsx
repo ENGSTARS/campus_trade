@@ -22,15 +22,21 @@ export function ProfileHeader({ profile, onEdit, onAvatarUpload }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="btn-secondary cursor-pointer">
-          Upload Photo
-          <input className="hidden" type="file" accept="image/*" onChange={onAvatarUpload} />
-        </label>
-        <Button variant="secondary" onClick={onEdit}>
-          Edit Profile
-        </Button>
-      </div>
+      {onEdit || onAvatarUpload ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {onAvatarUpload ? (
+            <label className="btn-secondary cursor-pointer">
+              Upload Photo
+              <input className="hidden" type="file" accept="image/*" onChange={onAvatarUpload} />
+            </label>
+          ) : null}
+          {onEdit ? (
+            <Button variant="secondary" onClick={onEdit}>
+              Edit Profile
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }

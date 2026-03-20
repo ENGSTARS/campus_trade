@@ -1,8 +1,12 @@
 import { useState } from 'react'
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=900&q=80'
+
 export function ListingGallery({ images = [], title }) {
   const [activeIndex, setActiveIndex] = useState(0)
-  const activeImage = images[activeIndex] || images[0]
+  const galleryImages = images.length ? images : [FALLBACK_IMAGE]
+  const activeImage = galleryImages[activeIndex] || galleryImages[0]
 
   return (
     <div className="space-y-3">
@@ -14,7 +18,7 @@ export function ListingGallery({ images = [], title }) {
         />
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {images.map((image, index) => (
+        {galleryImages.map((image, index) => (
           <button
             key={image}
             className={`overflow-hidden rounded-xl border transition ${

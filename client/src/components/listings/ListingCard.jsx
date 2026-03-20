@@ -8,6 +8,7 @@ import { SaveWishlistButton } from './SaveWishlistButton'
 
 export function ListingCard({ listing, currentUser, onEdit, onDelete }) {
   const { isOwner } = getListingPermissions(listing, currentUser)
+  const previewText = listing.description?.trim() || 'Open this listing to see more details.'
 
   return (
     <Card className="group overflow-hidden p-0 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_36px_-20px_rgba(67,56,202,0.45)]">
@@ -18,8 +19,9 @@ export function ListingCard({ listing, currentUser, onEdit, onDelete }) {
           className="h-44 w-full object-cover transition duration-500 group-hover:scale-105"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/35 via-transparent to-transparent" />
-        <div className="absolute left-3 top-3">
-          <Badge label={listing.condition} className="bg-white/95 text-slate-700" />
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+          <Badge label={listing.status} className="bg-white/95 text-slate-700" />
+          {isOwner ? <Badge label="Your Listing" className="bg-brand-600 text-white" /> : null}
         </div>
       </Link>
 
@@ -39,15 +41,16 @@ export function ListingCard({ listing, currentUser, onEdit, onDelete }) {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          {isOwner ? <Badge label="Your Listing" /> : null}
-          <Badge label={listing.type} />
-          <Badge label={listing.status} />
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{listing.campus}</span>
-        </div>
+        <p className="line-clamp-2 text-sm leading-6 text-slate-600">{previewText}</p>
 
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/listings/${listing.id}`}
+              className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-brand-700 transition hover:text-brand-800"
+            >
+              View Details
+            </Link>
             <Button variant="secondary" size="sm" onClick={() => onEdit?.(listing)}>
               Edit
             </Button>

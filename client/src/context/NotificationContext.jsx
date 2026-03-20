@@ -13,7 +13,7 @@ export function NotificationProvider({ children }) {
       const data = await notificationsApi.getNotifications()
       setNotifications(data?.items || [])
     }
-    loadNotifications()
+    // loadNotifications()
   }, [])
 
   const addNotification = (payload) => {

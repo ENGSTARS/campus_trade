@@ -7,25 +7,30 @@ import campusMark from '@/assets/campus-mark.svg'
 import { Footer } from '@/components/ui/Footer'
 
 export function MainLayout() {
-  const { isAuthenticated, isAdmin, logout } = useAuth()
+  const { isAuthenticated, isAdmin, logout, isLoading } = useAuth()
+
   const navItems = [
     { to: '/', label: 'Home' },
-    { to: '/messages', label: 'Messages' },
-    { to: '/saved', label: 'Saved' },
-    { to: '/profile', label: 'Profile' },
-    { to: '/my-products', label: 'MyProducts' },
+    ...(isAuthenticated
+      ? [
+          { to: '/messages', label: 'Messages' },
+          { to: '/saved', label: 'Saved' },
+          { to: '/profile', label: 'Profile' },
+          { to: '/my-products', label: 'MyProducts' },
+        ]
+      : []),
     ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
   ]
 
   return (
     <div className="min-h-screen bg-campus-gradient dark:bg-campus-gradient-dark flex flex-col">
       <header className="sticky top-0 z-30 border-b border-brand-100/60 bg-white/80 backdrop-blur-xl dark:border-[#2b386f] dark:bg-[#0f1838]/85">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <NavLink to="/" className="font-display flex items-center gap-2 text-xl font-black tracking-tight text-brand-700 dark:text-brand-200">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <NavLink to="/" className="font-display flex min-w-0 items-center gap-2 text-lg font-black tracking-tight text-brand-700 dark:text-brand-200 sm:text-xl">
             <img src={campusMark} alt="CampusTrade" className="h-8 w-8" />
-            CampusTrade
+            <span className="truncate">CampusTrade</span>
           </NavLink>
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -43,7 +48,7 @@ export function MainLayout() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <NotificationBell />
             {isAuthenticated ? (
@@ -51,13 +56,16 @@ export function MainLayout() {
                 Logout
               </Button>
             ) : (
-              <NavLink to="/login" className="btn-secondary">
-                Login
-              </NavLink>
+              <>
+                {isLoading ? <span className="text-sm text-slate-500">Checking session...</span> : null}
+                <NavLink to="/login" className="btn-secondary">
+                  Login
+                </NavLink>
+              </>
             )}
           </div>
         </div>
-        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 md:hidden">
+        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 lg:hidden">
           {navItems.map((item) => (
             <NavLink
               key={item.to}

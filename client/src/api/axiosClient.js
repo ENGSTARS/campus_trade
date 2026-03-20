@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const requestTimeoutMs = Number(
-  import.meta.env.VITE_API_TIMEOUT_MS ?? (import.meta.env.DEV ? 3500 : 8000),
+  import.meta.env.VITE_API_TIMEOUT_MS ?? (import.meta.env.DEV ? 10000 : 8000),
 )
 
 export const axiosClient = axios.create({
@@ -21,7 +21,12 @@ axiosClient.interceptors.request.use(
 
     // Your existing campus header
     const campus = localStorage.getItem('campustrade-campus')
-    if (campus) config.headers['X-Campus'] = campus
+    const method = String(config.method || 'get').toLowerCase()
+    if (method !== 'get' && campus && campus !== 'all') {
+      config.headers['X-Campus'] = campus
+    } else if (config.headers?.['X-Campus']) {
+      delete config.headers['X-Campus']
+    }
 
     return config
   },
@@ -44,7 +49,8 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    if (error?.response?.status === 401 && !original._retry) {
+    // Only attempt to refresh if the request was 401, not a retry, and a token was originally present
+    if (error?.response?.status === 401 && !original._retry && localStorage.getItem('access_token')) {
       // If already refreshing, queue this request until refresh completes
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

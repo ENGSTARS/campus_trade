@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { profileApi } from '@/api/profileApi'
 import { listingsApi } from '@/api/listingsApi'
 import { useApp } from '@/context/AppContext'
@@ -27,7 +27,6 @@ function ProfilePage() {
     transactions,
     isTransactionsLoading,
     transactionsError,
-    deleteListing,
     toggleWishlist,
   } = useApp()
   const { user: currentUser, setUser } = useAuth()
@@ -75,10 +74,6 @@ function ProfilePage() {
     bootstrapProfile()
   }, [reset])
 
-  const myListings = useMemo(
-    () => listings.filter((listing) => listing.sellerId === currentUser?.id),
-    [listings, currentUser],
-  )
   const myOrders = useMemo(
     () => transactions.filter((order) => order.buyerId === currentUser?.id),
     [transactions, currentUser],
@@ -117,19 +112,6 @@ function ProfilePage() {
     addToast({ type: 'success', message: `Review submitted for ${reviewTarget.item}` })
   }
 
-  const handleEditListing = (listingId) => {
-    navigate(`/listings/${listingId}/edit`)
-  }
-
-  const handleDeleteListing = async (listingId) => {
-    const shouldDelete = window.confirm('Delete this listing? This action cannot be undone.')
-    if (!shouldDelete) return
-
-    const deleted = await deleteListing(listingId)
-    if (!deleted) return
-    addToast({ type: 'success', message: 'Listing deleted' })
-  }
-
   const handleUnsave = async (listingId) => {
     const nextState = await toggleWishlist(listingId)
     if (nextState === false) {
@@ -149,33 +131,35 @@ function ProfilePage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.95fr]">
         <Card>
-          <h3 className="mb-3 text-lg font-semibold text-slate-900">My Listings</h3>
-          <div className="space-y-2">
-            {myListings.map((listing) => (
-              <div key={listing.id} className="rounded-xl border border-slate-100 p-3">
-                <p className="text-sm font-medium text-slate-800">{listing.title}</p>
-                <p className="text-xs text-slate-500">
-                  {listing.campus} | {listing.status}
-                </p>
-                {/* Business credentials */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {currentUser?.facebookLink && <a href={currentUser.facebookLink} target="_blank" rel="noopener" className="text-blue-600 text-xs">Facebook</a>}
-                  {currentUser?.instagramLink && <a href={currentUser.instagramLink} target="_blank" rel="noopener" className="text-pink-600 text-xs">Instagram</a>}
-                  {currentUser?.paymentLink && <a href={currentUser.paymentLink} target="_blank" rel="noopener" className="text-green-600 text-xs">Payment</a>}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => handleEditListing(listing.id)}>
-                    Edit
-                  </Button>
-                  <Button variant="danger" size="sm" onClick={() => handleDeleteListing(listing.id)}>
-                    Delete
-                  </Button>
-                </div>
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Seller Workspace</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Product management now lives on the dedicated My Products page so your profile stays focused on account details.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm text-slate-700">
+                Open My Products to add listings, track stock, edit prices, or remove items from the marketplace.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link to="/my-products" className="btn-primary">
+                  Open My Products
+                </Link>
+                <Link to="/sell" className="btn-secondary">
+                  Add Product
+                </Link>
               </div>
-            ))}
-            {myListings.length === 0 ? <p className="text-sm text-slate-500">No listings posted yet.</p> : null}
+            </div>
+            <div className="space-y-2 text-sm">
+              {currentUser?.facebookLink ? <a href={currentUser.facebookLink} target="_blank" rel="noopener" className="block text-blue-600">Facebook</a> : null}
+              {currentUser?.instagramLink ? <a href={currentUser.instagramLink} target="_blank" rel="noopener" className="block text-pink-600">Instagram</a> : null}
+              {currentUser?.paymentLink ? <a href={currentUser.paymentLink} target="_blank" rel="noopener" className="block text-green-600">Payment</a> : null}
+              {!currentUser?.facebookLink && !currentUser?.instagramLink && !currentUser?.paymentLink ? (
+                <p className="text-sm text-slate-500">No business links added yet.</p>
+              ) : null}
+            </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Total posted: {myListings.length}</p>
         </Card>
 
         <TransactionHistory title="My Orders" items={myOrders} onReview={setReviewTarget} />

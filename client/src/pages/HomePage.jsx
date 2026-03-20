@@ -63,30 +63,30 @@ function HomePage() {
         <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-brand-100/70 blur-3xl" />
         <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-cyan-100/70 blur-3xl" />
         <div className="space-y-4 sticky top-[20px]">
-          <div className='flex justify-between'>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <h1 className="font-display text-2xl font-bold text-slate-900">CampusTrade Marketplace</h1>
-            <div className="flex flex-col md:flex-row items-center justify-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 md:justify-end">
               <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">{filteredListings.length} listings</span>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Campus: {filters.campus}</span>
             </div>
           </div>
-          <div className="flex flex-col items-center gap-4 w-full">
-            <div className="flex w-full items-center gap-3">
+          <div className="flex w-full flex-col gap-4">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
               <SearchBar
                 value={searchValue}
                 onChange={setSearchValue}
                 onSearch={val => updateFilters({ query: val })}
                 className="w-full"
               />
-              <NavLink to={isAuthenticated ? '/sell' : '/login'} className="btn-primary whitespace-nowrap">Post an Item</NavLink>
+              <NavLink to={isAuthenticated ? '/sell' : '/login'} className="btn-primary whitespace-nowrap sm:self-auto self-start">Post an Item</NavLink>
             </div>
             
           </div>
         </div>
       </section>
       
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-        <div className="lg:sticky lg:top-24 h-fit">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="h-fit md:sticky md:top-24">
           <FilterSidebar filters={filters} onChange={updateFilters} onReset={resetFilters}/>
         </div>
         <motion.section

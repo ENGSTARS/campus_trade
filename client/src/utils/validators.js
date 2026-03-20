@@ -50,6 +50,7 @@ export const createListingSchema = z.object({
   condition: z.string().min(1, 'Condition is required'),
   type: z.enum(['NEW', 'SECOND_HAND']),
   campus: z.string().min(1, 'Campus is required'),
+  quantity: z.coerce.number().int('Quantity must be a whole number').min(1, 'Quantity must be at least 1'),
   imageUrl: z
     .string()
     .trim()

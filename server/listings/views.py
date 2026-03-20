@@ -1,7 +1,11 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
+from decouple import config
+import base64
+import requests
 from .models import (
     Listing, Wishlist, Review,
     Report, Order, Offer
@@ -10,6 +14,8 @@ from .serializers import (
     ListingSerializer, ReviewSerializer,
     ReportSerializer, OrderSerializer, OfferSerializer,
 )
+
+IMGBB_API_KEY = config('IMGBB_API_KEY', default='')
 
 
 # ── GET /api/listings/   POST /api/listings/ ─────────────────────
@@ -22,7 +28,21 @@ class ListingListCreateView(generics.ListCreateAPIView):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        qs = Listing.objects.filter(is_active=True)
+        include_inactive = self.request.query_params.get('includeInactive') in {'1', 'true', 'True'}
+        seller_id = self.request.query_params.get('sellerId')
+        is_admin = bool(
+            self.request.user
+            and self.request.user.is_authenticated
+            and (self.request.user.is_staff or self.request.user.is_superuser)
+        )
+
+        if include_inactive and is_admin:
+            qs = Listing.objects.all()
+        else:
+            qs = Listing.objects.filter(is_active=True)
+
+        if seller_id:
+            qs = qs.filter(seller_id=seller_id)
 
         # Filter by X-Campus header sent by axiosClient
         campus = self.request.headers.get('X-Campus')
@@ -50,8 +70,34 @@ class ListingListCreateView(generics.ListCreateAPIView):
         return {'request': self.request}
 
     def perform_create(self, serializer):
-        campus = self.request.headers.get('X-Campus', '')
-        serializer.save(seller=self.request.user, campus=campus)
+        campus = self.request.data.get('campus') or self.request.headers.get('X-Campus', '')
+        raw_quantity = self.request.data.get('quantity', 1)
+        try:
+            quantity = max(0, int(raw_quantity))
+        except (TypeError, ValueError):
+            quantity = 1
+
+        serializer.save(
+            seller=self.request.user,
+            campus=campus,
+            quantity=quantity,
+            status='SOLD' if quantity == 0 else 'AVAILABLE',
+        )
+
+
+class MyListingsView(generics.ListAPIView):
+    serializer_class = ListingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        include_inactive = self.request.query_params.get('includeInactive') in {'1', 'true', 'True'}
+        queryset = Listing.objects.filter(seller=self.request.user)
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by('-created_at')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 
 # ── GET /api/listings/:id/   PATCH   DELETE ──────────────────────
@@ -67,10 +113,76 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def perform_update(self, serializer):
+        campus = self.request.data.get('campus')
+        current = self.get_object()
+        quantity = self.request.data.get('quantity')
+
+        if quantity is None:
+            next_quantity = current.quantity
+        else:
+            try:
+                next_quantity = max(0, int(quantity))
+            except (TypeError, ValueError):
+                next_quantity = current.quantity
+
+        requested_status = self.request.data.get('status', current.status)
+        next_status = 'SOLD' if next_quantity == 0 else requested_status
+
+        if campus is not None:
+            serializer.save(campus=campus, quantity=next_quantity, status=next_status)
+            return
+        serializer.save(quantity=next_quantity, status=next_status)
+
     def perform_destroy(self, instance):
         # Soft delete — don't actually remove from DB
         instance.is_active = False
         instance.save()
+
+
+class ListingImageUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if not IMGBB_API_KEY:
+            return Response(
+                {'error': 'IMGBB_API_KEY is not configured on the server.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response({'error': 'Image file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+        try:
+            response = requests.post(
+                'https://api.imgbb.com/1/upload',
+                data={
+                    'key': IMGBB_API_KEY,
+                    'image': encoded_image,
+                    'name': image_file.name,
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            payload = response.json().get('data', {})
+        except requests.RequestException as exc:
+            return Response(
+                {'error': f'Could not upload image to ImgBB: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        image_url = payload.get('url')
+        if not image_url:
+            return Response(
+                {'error': 'ImgBB did not return an image URL.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response({'imageUrl': image_url}, status=status.HTTP_201_CREATED)
 
 
 # ── GET /api/listings/:id/related/ ───────────────────────────────
@@ -138,19 +250,26 @@ class CreateOrderView(APIView):
 
     def post(self, request, pk):
         listing = get_object_or_404(Listing, pk=pk, status='AVAILABLE')
+        if listing.quantity <= 0:
+            return Response(
+                {'error': 'This item is out of stock.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         order   = Order.objects.create(
             listing=listing,
             buyer=request.user,
             seller=listing.seller,
             amount=listing.price,
         )
-        # Auto-update listing status to RESERVED
-        listing.status = 'RESERVED'
-        listing.save()
+        listing.quantity = max(0, listing.quantity - 1)
+        listing.status = 'SOLD' if listing.quantity == 0 else 'AVAILABLE'
+        listing.save(update_fields=['quantity', 'status'])
         return Response({
             'success':  True,
             'message':  'Order request placed',
             'order_id': order.id,
+            'quantity': listing.quantity,
+            'status': listing.status,
         })
 
 
@@ -185,6 +304,17 @@ class UpdateListingStatusView(APIView):
                 {'error': f'Invalid status. Choose from: {allowed}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if new_status == 'AVAILABLE' and listing.quantity == 0:
+            return Response(
+                {'error': 'Restock quantity before marking this listing as available.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         listing.status = new_status
-        listing.save()
-        return Response({'success': True, 'status': listing.status})
+        if new_status == 'SOLD':
+            listing.quantity = 0
+            listing.save(update_fields=['status', 'quantity'])
+        else:
+            listing.save(update_fields=['status'])
+        return Response({'success': True, 'status': listing.status, 'quantity': listing.quantity})
