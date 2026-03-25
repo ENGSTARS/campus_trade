@@ -6,31 +6,12 @@ import { useAuth } from '@/context/AuthContext'
 import { useNotifications } from '@/context/NotificationContext'
 import { registerSchema } from '@/utils/validators'
 import { CAMPUS_OPTIONS } from '@/utils/constants'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { Eye, EyeOff } from 'lucide-react'
-
-function extractRegistrationErrorMessage(error) {
-  const data = error?.response?.data
-  if (!data) return 'Registration failed. Please try again.'
-
-  if (typeof data === 'string') return data
-  if (typeof data.detail === 'string') return data.detail
-  if (typeof data.error === 'string') return data.error
-  if (Array.isArray(data.non_field_errors) && data.non_field_errors[0]) return data.non_field_errors[0]
-
-  const firstFieldError = Object.values(data).find((value) => {
-    if (Array.isArray(value)) return typeof value[0] === 'string'
-    return typeof value === 'string'
-  })
-
-  if (Array.isArray(firstFieldError) && firstFieldError[0]) return firstFieldError[0]
-  if (typeof firstFieldError === 'string') return firstFieldError
-
-  return 'Registration failed. Please check your details and try again.'
-}
 
 function RegisterPage() {
   const navigate = useNavigate()
@@ -59,7 +40,7 @@ function RegisterPage() {
       addToast({ type: 'success', message: 'Registration successful. You can now log in.' })
       navigate('/login')
     } catch (error) {
-      const message = extractRegistrationErrorMessage(error)
+      const message = extractApiErrorMessage(error, 'Registration failed. Please check your details and try again.')
       addToast({ type: 'error', message })
     }
   }

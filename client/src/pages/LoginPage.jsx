@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useNotifications } from '@/context/NotificationContext'
 import { loginSchema } from '@/utils/validators'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -38,8 +39,7 @@ function LoginPage() {
       addToast({ type: 'success', message: 'Logged in successfully' })
       navigate(redirectTo, { replace: true })
     } catch (error) {
-      // Error handling is usually handled within the login context, 
-      // but you can add local error handling here if needed.
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Login failed. Please try again.') })
     }
   }
 

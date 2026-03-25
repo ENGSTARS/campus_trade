@@ -1,6 +1,4 @@
 import { axiosClient } from './axiosClient'
-import { withFallback } from './fallback'
-import { mockProfile } from '@/utils/mockData'
 
 const SESSION_KEY = 'campustrade-session-user'
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -41,37 +39,19 @@ export const authApi = {
       email: payload.email,
       password: payload.password,
       confirm_password: payload.confirmPassword,
-      full_name: payload.fullName,
-      campus: payload.campus,
     }
 
+    if (payload.fullName?.trim()) normalizedPayload.full_name = payload.fullName.trim()
+    if (payload.campus?.trim()) normalizedPayload.campus = payload.campus.trim()
     if (payload.bio?.trim()) normalizedPayload.bio = payload.bio.trim()
     if (payload.contact?.trim()) normalizedPayload.contact = payload.contact.trim()
 
-    return withFallback(
-      () => axiosClient.post('/register/', normalizedPayload),
-      {
-        user: {
-          ...mockProfile,
-          fullName: payload.fullName,
-          email: payload.email,
-          campus: payload.campus,
-          role: 'student',
-        },
-        message: 'Registration successful. You can now log in.',
-      },
-    )
+    const response = await axiosClient.post('/register/', normalizedPayload)
+    return response?.data ?? response
   },
   async login(payload) {
-    const isAdmin = payload.email?.toLowerCase().includes('admin')
-    const data = await withFallback(() => axiosClient.post('/auth/login/', payload), {
-      user: {
-        ...mockProfile,
-        email: payload.email,
-        role: isAdmin ? 'admin' : 'student',
-      },
-      message: 'Welcome back',
-    })
+    const response = await axiosClient.post('/auth/login/', payload)
+    const data = response?.data ?? response
     saveTokens(data)
     saveSession(data.user)
     return data
@@ -80,7 +60,16 @@ export const authApi = {
     if (!hasStoredAuth()) {
       return Promise.resolve({ user: null })
     }
-    return withFallback(() => axiosClient.get('/me/'), { user: getSession() }, { dedupeKey: 'auth:me' })
+    return axiosClient
+      .get('/me/')
+      .then((response) => response?.data ?? response)
+      .catch((error) => {
+        const sessionUser = getSession()
+        if (sessionUser && !error?.response) {
+          return { user: sessionUser }
+        }
+        throw error
+      })
   },
   async logout() {
     clearSession()

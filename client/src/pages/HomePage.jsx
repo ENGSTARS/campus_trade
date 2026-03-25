@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { FilterSidebar } from '@/components/listings/FilterSidebar'
 import { ListingsGrid } from '@/components/listings/ListingsGrid'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
 
 function HomePage() {
   const navigate = useNavigate()
@@ -53,9 +54,13 @@ function HomePage() {
     const shouldDelete = window.confirm('Delete this listing? This action cannot be undone.')
     if (!shouldDelete) return
 
-    const deleted = await deleteListing(listing.id)
-    if (!deleted) return
-    addToast({ type: 'success', message: 'Listing deleted' })
+    try {
+      const deleted = await deleteListing(listing.id)
+      if (!deleted) return
+      addToast({ type: 'success', message: 'Listing deleted' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this listing.') })
+    }
   }
 
   const handleOrderListing = async (listing) => {
@@ -64,9 +69,13 @@ function HomePage() {
       return
     }
 
-    const created = await createOrderForListing(listing, currentUser)
-    if (!created) return
-    addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
+    try {
+      const created = await createOrderForListing(listing, currentUser)
+      if (!created) return
+      addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to place this order.') })
+    }
   }
 
   return (

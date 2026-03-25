@@ -19,6 +19,11 @@ import { Modal } from '@/components/ui/Modal'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ReviewModal } from '@/components/listings/ReviewModal'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
+
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
 
 function ProfilePage() {
   const navigate = useNavigate()
@@ -81,17 +86,21 @@ function ProfilePage() {
   const mySaved = useMemo(
     () =>
       listings.filter(
-        (listing) => listing.isWishlisted && listing.sellerId !== currentUser?.id,
+        (listing) => listing.isWishlisted && !idsEqual(listing.sellerId, currentUser?.id),
       ),
     [listings, currentUser],
   )
 
   const submitProfile = async (values) => {
-    const response = await profileApi.updateProfile(values)
-    setProfile(response.user)
-    setUser(response.user)
-    setIsEditOpen(false)
-    addToast({ type: 'success', message: 'Profile updated' })
+    try {
+      const response = await profileApi.updateProfile(values)
+      setProfile(response.user)
+      setUser(response.user)
+      setIsEditOpen(false)
+      addToast({ type: 'success', message: 'Profile updated' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to update your profile.') })
+    }
   }
 
   const uploadAvatar = (event) => {
@@ -108,8 +117,13 @@ function ProfilePage() {
 
   const submitTransactionReview = async (values) => {
     if (!reviewTarget) return
-    await listingsApi.submitReview(reviewTarget.listingId || reviewTarget.id, values)
-    addToast({ type: 'success', message: `Review submitted for ${reviewTarget.item}` })
+    try {
+      await listingsApi.submitReview(reviewTarget.listingId || reviewTarget.id, values)
+      addToast({ type: 'success', message: `Review submitted for ${reviewTarget.item}` })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to submit your review.') })
+      throw error
+    }
   }
 
   const handleUnsave = async (listingId) => {

@@ -1,9 +1,11 @@
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.conf import settings
 from django.shortcuts import get_object_or_404
-from decouple import config
+from django.db import transaction
 import base64
 import requests
 from api.models import Notification
@@ -16,7 +18,7 @@ from .serializers import (
     ReportSerializer, OrderSerializer, OfferSerializer,
 )
 
-IMGBB_API_KEY = config('IMGBB_API_KEY', default='')
+IMGBB_API_KEY = getattr(settings, 'IMGBB_API_KEY', '')
 
 
 # ── GET /api/listings/   POST /api/listings/ ─────────────────────
@@ -114,6 +116,12 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def get_object(self):
+        instance = super().get_object()
+        if self.request.method in {'PATCH', 'PUT', 'DELETE'} and instance.seller_id != self.request.user.id:
+            raise ValidationError({'error': 'You can only modify your own listings.'})
+        return instance
+
     def perform_update(self, serializer):
         campus = self.request.data.get('campus')
         current = self.get_object()
@@ -127,8 +135,20 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
             except (TypeError, ValueError):
                 next_quantity = current.quantity
 
-        requested_status = self.request.data.get('status', current.status)
-        next_status = 'SOLD' if next_quantity == 0 else requested_status
+        requested_status = self.request.data.get('status')
+        if next_quantity == 0:
+            next_status = 'SOLD'
+        elif requested_status == 'SOLD':
+            next_quantity = 0
+            next_status = 'SOLD'
+        elif requested_status == 'RESERVED':
+            if next_quantity != 1:
+                raise ValidationError({'status': 'Reserved status is only allowed when quantity is exactly 1.'})
+            next_status = 'RESERVED'
+        elif requested_status == 'AVAILABLE':
+            next_status = 'AVAILABLE'
+        else:
+            next_status = 'RESERVED' if current.status == 'RESERVED' and next_quantity == 1 else 'AVAILABLE'
 
         if campus is not None:
             serializer.save(campus=campus, quantity=next_quantity, status=next_status)
@@ -250,31 +270,40 @@ class CreateOrderView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        listing = get_object_or_404(Listing, pk=pk, status='AVAILABLE')
-        if listing.seller_id == request.user.id:
-            return Response(
-                {'error': 'You cannot place an order on your own listing.'},
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            listing = get_object_or_404(Listing.objects.select_for_update(), pk=pk, is_active=True)
+            if listing.seller_id == request.user.id:
+                return Response(
+                    {'error': 'You cannot place an order on your own listing.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if listing.status != 'AVAILABLE':
+                return Response(
+                    {'error': 'This listing is not available for ordering.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if listing.quantity <= 0:
+                listing.status = 'SOLD'
+                listing.save(update_fields=['status'])
+                return Response(
+                    {'error': 'This item is out of stock.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            order = Order.objects.create(
+                listing=listing,
+                buyer=request.user,
+                seller=listing.seller,
+                amount=listing.price,
             )
-        if listing.quantity <= 0:
-            return Response(
-                {'error': 'This item is out of stock.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            listing.quantity = max(0, listing.quantity - 1)
+            listing.status = 'SOLD' if listing.quantity == 0 else 'AVAILABLE'
+            listing.save(update_fields=['quantity', 'status'])
+            Notification.objects.create(
+                recipient=listing.seller,
+                title='New order placed',
+                body=f'{request.user.profile.full_name or request.user.email} placed an order for "{listing.title}".',
             )
-        order   = Order.objects.create(
-            listing=listing,
-            buyer=request.user,
-            seller=listing.seller,
-            amount=listing.price,
-        )
-        listing.quantity = max(0, listing.quantity - 1)
-        listing.status = 'SOLD' if listing.quantity == 0 else 'AVAILABLE'
-        listing.save(update_fields=['quantity', 'status'])
-        Notification.objects.create(
-            recipient=listing.seller,
-            title='New order placed',
-            body=f'{request.user.profile.full_name or request.user.email} placed an order for "{listing.title}".',
-        )
         return Response({
             'success':  True,
             'message':  'Order request placed',
@@ -319,6 +348,12 @@ class UpdateListingStatusView(APIView):
         if new_status == 'AVAILABLE' and listing.quantity == 0:
             return Response(
                 {'error': 'Restock quantity before marking this listing as available.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_status == 'RESERVED' and listing.quantity != 1:
+            return Response(
+                {'error': 'Reserved status is only allowed when quantity is exactly 1.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

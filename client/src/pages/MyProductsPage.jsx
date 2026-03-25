@@ -9,6 +9,12 @@ import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/utils/formatters'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useNotifications } from '@/context/NotificationContext'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
+
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
 
 function SummaryCard({ label, value, tone = 'slate' }) {
   const toneClasses = {
@@ -30,6 +36,7 @@ export default function MyProductsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { listings, deleteListing, updateListingStatus, setListings } = useApp()
+  const { addToast } = useNotifications()
   const [pageListings, setPageListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -49,12 +56,16 @@ export default function MyProductsPage() {
       setLoading(true)
       setLoadError('')
       try {
-        const data = await listingsApi.getMyListings({ includeInactive: true })
+        const data = await listingsApi.getMyListings()
         if (!isMounted) return
         const items = data?.items || []
         setPageListings(items)
         setListings((previous) => {
-          const byId = new Map(previous.map((item) => [item.id, item]))
+          const byId = new Map(
+            previous
+              .filter((item) => !idsEqual(item.sellerId, user?.id))
+              .map((item) => [item.id, item]),
+          )
           items.forEach((item) => byId.set(item.id, item))
           return Array.from(byId.values())
         })
@@ -74,8 +85,8 @@ export default function MyProductsPage() {
   }, [user?.id, setListings])
 
   const myListings = useMemo(() => {
-    const source = pageListings.length ? pageListings : listings.filter((listing) => listing.sellerId === user?.id)
-    return source.filter((listing) => listing.sellerId === user?.id)
+    const source = pageListings.length ? pageListings : listings.filter((listing) => idsEqual(listing.sellerId, user?.id))
+    return source.filter((listing) => idsEqual(listing.sellerId, user?.id))
   }, [pageListings, listings, user?.id])
 
   const inventory = useMemo(() => {
@@ -93,11 +104,29 @@ export default function MyProductsPage() {
   const handleDeleteListing = async (listing) => {
     const shouldDelete = window.confirm(`Delete "${listing.title}"? This action cannot be undone.`)
     if (!shouldDelete) return
-    await deleteListing(listing.id)
+    try {
+      const deleted = await deleteListing(listing.id)
+      if (!deleted) return
+      setPageListings((previous) => previous.filter((item) => String(item.id) !== String(listing.id)))
+      addToast({ type: 'success', message: 'Listing deleted' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this listing.') })
+    }
   }
 
   const handleMarkSold = async (listingId) => {
-    await updateListingStatus(listingId, 'SOLD')
+    try {
+      const updated = await updateListingStatus(listingId, 'SOLD')
+      if (!updated) return
+      setPageListings((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(listingId) ? { ...item, status: 'SOLD', quantity: 0 } : item,
+        ),
+      )
+      addToast({ type: 'success', message: 'Listing marked as sold' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to update listing status.') })
+    }
   }
 
   if (loading) {
@@ -187,7 +216,7 @@ export default function MyProductsPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => handleMarkSold(listing.id)}
-                      disabled={listing.status === 'SOLD'}
+                      disabled={listing.status === 'SOLD' || listing.status === 'RESERVED'}
                     >
                       Mark Sold
                     </Button>

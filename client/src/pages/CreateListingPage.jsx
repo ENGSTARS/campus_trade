@@ -15,6 +15,11 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
+
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
 
 const baseFormValues = {
   title: '',
@@ -51,7 +56,7 @@ function CreateListingPage() {
   const { addToast } = useNotifications()
 
   const listingFromContext = useMemo(
-    () => (isEditMode ? listings.find((item) => item.id === listingId) || null : null),
+    () => (isEditMode ? listings.find((item) => idsEqual(item.id, listingId)) || null : null),
     [isEditMode, listings, listingId],
   )
 
@@ -99,7 +104,7 @@ function CreateListingPage() {
         setEditingListing(item)
         if (item) {
           setListings((previous) =>
-            previous.some((listing) => listing.id === item.id) ? previous : [item, ...previous],
+            previous.some((listing) => idsEqual(listing.id, item.id)) ? previous : [item, ...previous],
           )
         }
       } catch {
@@ -141,34 +146,38 @@ function CreateListingPage() {
       return
     }
 
-    if (isEditMode) {
-      if (!editingListing || !permissions?.isOwner) return
+    try {
+      if (isEditMode) {
+        if (!editingListing || !permissions?.isOwner) return
 
-      const patch = {
-        title: values.title.trim(),
-        description: values.description.trim(),
-        price: Number(values.price),
-        campus: values.campus,
-        quantity: Number(values.quantity),
-        category: values.category,
-        condition: values.condition,
-        type: values.type,
-        images: values.imageUrl ? [values.imageUrl.trim()] : editingListing.images,
+        const patch = {
+          title: values.title.trim(),
+          description: values.description.trim(),
+          price: Number(values.price),
+          campus: values.campus,
+          quantity: Number(values.quantity),
+          category: values.category,
+          condition: values.condition,
+          type: values.type,
+          images: values.imageUrl ? [values.imageUrl.trim()] : editingListing.images,
+        }
+
+        const updated = await updateListing(editingListing.id, patch)
+        if (!updated) return
+
+        addToast({ type: 'success', message: 'Listing updated successfully' })
+        navigate(`/listings/${editingListing.id}`)
+        return
       }
 
-      const updated = await updateListing(editingListing.id, patch)
-      if (!updated) return
+      const created = await createListing(values, currentUser)
+      if (!created) return
 
-      addToast({ type: 'success', message: 'Listing updated successfully' })
-      navigate(`/listings/${editingListing.id}`)
-      return
+      addToast({ type: 'success', message: 'Listing posted successfully' })
+      navigate(`/listings/${created.id}`)
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to save this listing.') })
     }
-
-    const created = await createListing(values, currentUser)
-    if (!created) return
-
-    addToast({ type: 'success', message: 'Listing posted successfully' })
-    navigate(`/listings/${created.id}`)
   }
 
   const handleImageUpload = async (event) => {
@@ -181,8 +190,8 @@ function CreateListingPage() {
       const imageUrl = data?.imageUrl || ''
       setValue('imageUrl', imageUrl, { shouldValidate: true, shouldDirty: true })
       addToast({ type: 'success', message: 'Image uploaded successfully' })
-    } catch {
-      addToast({ type: 'error', message: 'Could not upload image' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Could not upload image') })
     } finally {
       setIsUploadingImage(false)
       event.target.value = ''
@@ -194,11 +203,15 @@ function CreateListingPage() {
     const shouldDelete = window.confirm('Delete this listing? This action cannot be undone.')
     if (!shouldDelete) return
 
-    const deleted = await deleteListing(editingListing.id)
-    if (!deleted) return
+    try {
+      const deleted = await deleteListing(editingListing.id)
+      if (!deleted) return
 
-    addToast({ type: 'success', message: 'Listing deleted' })
-    navigate('/')
+      addToast({ type: 'success', message: 'Listing deleted' })
+      navigate('/')
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this listing.') })
+    }
   }
 
   if (isBootstrapping) {

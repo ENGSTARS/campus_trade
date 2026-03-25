@@ -1,23 +1,22 @@
 import { axiosClient } from './axiosClient'
-import { withFallback } from './fallback'
-import { mockListings } from '@/utils/mockData'
 
 function normalizeListing(item) {
   if (!item) return item
   const quantity =
     typeof item.quantity === 'number' ? item.quantity : item.status === 'SOLD' ? 0 : 1
-  const status = quantity === 0 ? 'SOLD' : item.status || 'AVAILABLE'
+  const status =
+    quantity === 0
+      ? 'SOLD'
+      : item.status === 'RESERVED' && quantity === 1
+        ? 'RESERVED'
+        : 'AVAILABLE'
   return { ...item, quantity, status }
 }
 
 export const listingsApi = {
   async getListings(params = {}) {
-    const key = JSON.stringify(params || {})
-    const data = await withFallback(
-      () => axiosClient.get('/listings/', { params }),
-      () => ({ items: mockListings, total: mockListings.length }),
-      { dedupeKey: `listings:get:${key}` },
-    )
+    const response = await axiosClient.get('/listings/', { params })
+    const data = response?.data ?? response
     if (Array.isArray(data)) {
       return { items: data.map(normalizeListing), total: data.length }
     }
@@ -28,12 +27,8 @@ export const listingsApi = {
     }
   },
   async getMyListings(params = {}) {
-    const key = JSON.stringify(params || {})
-    const data = await withFallback(
-      () => axiosClient.get('/listings/mine/', { params }),
-      () => ({ items: [] }),
-      { dedupeKey: `listings:mine:${key}` },
-    )
+    const response = await axiosClient.get('/listings/mine/', { params })
+    const data = response?.data ?? response
     const items = (data?.items || (Array.isArray(data) ? data : [])).map(normalizeListing)
     return {
       items,
@@ -41,34 +36,24 @@ export const listingsApi = {
     }
   },
   getListingById(id) {
-    return withFallback(
-      () => axiosClient.get(`/listings/${id}/`),
-      () => ({ item: mockListings.find((listing) => listing.id === id) || null }),
-      { dedupeKey: `listings:detail:${id}` },
-    ).then((data) => {
+    return axiosClient.get(`/listings/${id}/`).then((response) => {
+      const data = response?.data ?? response
       if (!data) return { item: null }
       if (data.item !== undefined) return { ...data, item: normalizeListing(data.item) }
       return { item: normalizeListing(data) }
     })
   },
   getRelatedListings(id) {
-    return withFallback(
-      () => axiosClient.get(`/listings/${id}/related/`),
-      () => ({
-        items: mockListings.filter((listing) => listing.id !== id).slice(0, 3),
-      }),
-      { dedupeKey: `listings:related:${id}` },
-    ).then((data) => ({ items: (data?.items || []).map(normalizeListing) }))
+    return axiosClient.get(`/listings/${id}/related/`).then((response) => {
+      const data = response?.data ?? response
+      return { items: (data?.items || []).map(normalizeListing) }
+    })
   },
   toggleWishlist(id) {
-    return withFallback(() => axiosClient.post(`/listings/${id}/wishlist/`), {
-      success: true,
-    })
+    return axiosClient.post(`/listings/${id}/wishlist/`).then((response) => response?.data ?? response)
   },
   reportListing(id, payload) {
-    return withFallback(() => axiosClient.post(`/listings/${id}/report/`, payload), {
-      success: true,
-    })
+    return axiosClient.post(`/listings/${id}/report/`, payload).then((response) => response?.data ?? response)
   },
   submitReview(id, payload) {
     const normalizedPayload = {
@@ -77,21 +62,13 @@ export const listingsApi = {
     }
     delete normalizedPayload.comment
 
-    return withFallback(() => axiosClient.post(`/listings/${id}/review/`, normalizedPayload), {
-      success: true,
-    })
+    return axiosClient.post(`/listings/${id}/review/`, normalizedPayload).then((response) => response?.data ?? response)
   },
   createOrder(id) {
-    return withFallback(() => axiosClient.post(`/listings/${id}/order/`), {
-      success: true,
-      message: 'Order request placed',
-    })
+    return axiosClient.post(`/listings/${id}/order/`).then((response) => response?.data ?? response)
   },
   submitOffer(id, payload) {
-    return withFallback(() => axiosClient.post(`/listings/${id}/offer/`, payload), {
-      success: true,
-      message: 'Offer sent to seller',
-    })
+    return axiosClient.post(`/listings/${id}/offer/`, payload).then((response) => response?.data ?? response)
   },
   uploadImage(file) {
     const formData = new FormData()
@@ -105,36 +82,25 @@ export const listingsApi = {
       .then((response) => response.data)
   },
   updateListing(id, payload) {
-    return withFallback(() => axiosClient.patch(`/listings/${id}/`, payload), {
-      success: true,
-      item: { id, ...payload },
-    }).then((data) => {
+    return axiosClient.patch(`/listings/${id}/`, payload).then((response) => {
+      const data = response?.data ?? response
       if (!data) return { item: null }
       if (data.item !== undefined) return { ...data, item: normalizeListing(data.item) }
       return { item: normalizeListing(data) }
     })
   },
   createListing(payload) {
-    return withFallback(() => axiosClient.post('/listings/', payload), {
-      success: true,
-      item: payload,
-    }).then((data) => {
+    return axiosClient.post('/listings/', payload).then((response) => {
+      const data = response?.data ?? response
       if (!data) return { item: null }
       if (data.item !== undefined) return { ...data, item: normalizeListing(data.item) }
       return { item: normalizeListing(data) }
     })
   },
   deleteListing(id) {
-    return withFallback(() => axiosClient.delete(`/listings/${id}/`), {
-      success: true,
-      id,
-    })
+    return axiosClient.delete(`/listings/${id}/`).then((response) => response?.data ?? response)
   },
   updateListingStatus(id, status) {
-    return withFallback(() => axiosClient.patch(`/listings/${id}/status/`, { status }), {
-      success: true,
-      status,
-      quantity: status === 'SOLD' ? 0 : undefined,
-    })
+    return axiosClient.patch(`/listings/${id}/status/`, { status }).then((response) => response?.data ?? response)
   },
 }

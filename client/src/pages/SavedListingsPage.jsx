@@ -5,6 +5,10 @@ import { useAuth } from '@/context/AuthContext'
 import { ListingsGrid } from '@/components/listings/ListingsGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
+
 function SavedListingsPage() {
   const navigate = useNavigate()
   const { listings, isListingsLoading } = useApp()
@@ -13,7 +17,7 @@ function SavedListingsPage() {
   const savedListings = useMemo(
     () =>
       listings.filter(
-        (listing) => listing.isWishlisted && listing.sellerId !== currentUser?.id,
+        (listing) => listing.isWishlisted && !idsEqual(listing.sellerId, currentUser?.id),
       ),
     [listings, currentUser],
   )

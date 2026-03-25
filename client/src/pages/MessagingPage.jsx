@@ -8,6 +8,11 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ConversationList } from '@/components/messaging/ConversationList'
 import { ChatWindow } from '@/components/messaging/ChatWindow'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
+
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
 
 function MessagingPage() {
   const location = useLocation()
@@ -28,9 +33,9 @@ function MessagingPage() {
       setIsLoading(true)
       setError('')
       try {
-        const conversationData = await messagingApi.getConversations(currentUser?.id)
+        const conversationData = await messagingApi.getConversations()
         const items = (conversationData?.items || []).filter(
-          (conversation) => conversation.participantId !== currentUser?.id,
+          (conversation) => !idsEqual(conversation.participantId, currentUser?.id),
         )
         if (!isMounted) return
 
@@ -48,7 +53,7 @@ function MessagingPage() {
             : items[0].id
 
         setActiveConversationId(requestedId)
-        const messageData = await messagingApi.getMessages(requestedId, currentUser?.id)
+        const messageData = await messagingApi.getMessages(requestedId)
         if (!isMounted) return
 
         setMessages(messageData?.items || [])
@@ -77,33 +82,30 @@ function MessagingPage() {
 
   const selectConversation = async (conversationId) => {
     setActiveConversationId(conversationId)
-    const data = await messagingApi.getMessages(conversationId, currentUser?.id)
+    const data = await messagingApi.getMessages(conversationId)
     setMessages(data?.items || [])
   }
 
   const sendMessage = async (message) => {
     if (!activeConversationId) return
 
-    const response = await messagingApi.sendMessage(activeConversationId, {
-      message,
-      participantId: activeConversation?.participantId,
-      participantName: activeConversation?.name,
-      senderId: currentUser?.id,
-      senderName: currentUser?.fullName || currentUser?.email || 'Student',
-      listingId: activeConversation?.listingId,
-    }, currentUser?.id)
-    const sentMessage = response?.item
-    if (!sentMessage) return
+    try {
+      const response = await messagingApi.sendMessage(activeConversationId, { message })
+      const sentMessage = response?.item
+      if (!sentMessage) return
 
-    setMessages((previous) => [...previous, sentMessage])
-    setConversations((previous) => {
-      const next = previous.map((conversation) =>
-        conversation.id === activeConversationId
-          ? { ...conversation, lastMessage: sentMessage.message, updatedAt: sentMessage.createdAt }
-          : conversation,
-      )
-      return [...next].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    })
+      setMessages((previous) => [...previous, sentMessage])
+      setConversations((previous) => {
+        const next = previous.map((conversation) =>
+          idsEqual(conversation.id, activeConversationId)
+            ? { ...conversation, lastMessage: sentMessage.message, updatedAt: sentMessage.createdAt }
+            : conversation,
+        )
+        return [...next].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to send message right now.') })
+    }
   }
 
   const deleteConversation = async (conversation) => {
@@ -111,7 +113,12 @@ function MessagingPage() {
     const shouldDelete = window.confirm(`Delete this conversation with ${conversation.name}?`)
     if (!shouldDelete) return
 
-    await messagingApi.deleteConversation(conversation.id, currentUser?.id, conversation.participantId)
+    try {
+      await messagingApi.deleteConversation(conversation.id)
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this conversation.') })
+      return
+    }
     const nextConversations = conversations.filter((item) => item.id !== conversation.id)
     setConversations(nextConversations)
 
@@ -119,7 +126,7 @@ function MessagingPage() {
       const nextActiveId = nextConversations[0]?.id || ''
       setActiveConversationId(nextActiveId)
       if (nextActiveId) {
-        const data = await messagingApi.getMessages(nextActiveId, currentUser?.id)
+        const data = await messagingApi.getMessages(nextActiveId)
         setMessages(data?.items || [])
       } else {
         setMessages([])

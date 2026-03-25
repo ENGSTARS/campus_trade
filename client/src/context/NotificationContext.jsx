@@ -11,6 +11,18 @@ export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
   const [toasts, setToasts] = useState([])
 
+  const addToast = (payload) => {
+    const toast = {
+      id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: payload.type || 'info',
+      message: payload.message || 'Action completed',
+    }
+    setToasts((previous) => [toast, ...previous])
+    setTimeout(() => {
+      setToasts((previous) => previous.filter((item) => item.id !== toast.id))
+    }, 3200)
+  }
+
   useEffect(() => {
     if (!user?.id) {
       setNotifications([])
@@ -20,7 +32,13 @@ export function NotificationProvider({ children }) {
     let isMounted = true
 
     async function loadNotifications(showToastForNew = false) {
-      const data = await notificationsApi.getNotifications()
+      let data
+      try {
+        data = await notificationsApi.getNotifications()
+      } catch {
+        if (isMounted) setNotifications([])
+        return
+      }
       if (!isMounted) return
 
       const nextItems = data?.items || []
@@ -70,18 +88,6 @@ export function NotificationProvider({ children }) {
   }
 
   useFirebaseNotifications(addNotification)
-
-  const addToast = (payload) => {
-    const toast = {
-      id: `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      type: payload.type || 'info',
-      message: payload.message || 'Action completed',
-    }
-    setToasts((previous) => [toast, ...previous])
-    setTimeout(() => {
-      setToasts((previous) => previous.filter((item) => item.id !== toast.id))
-    }, 3200)
-  }
 
   const removeToast = (id) => {
     setToasts((previous) => previous.filter((item) => item.id !== id))

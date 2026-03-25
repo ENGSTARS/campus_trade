@@ -1,36 +1,29 @@
 // client/src/api/profileApi.js
 
 import { axiosClient } from './axiosClient'
-import { withFallback } from './fallback'
-import { mockProfile, mockTransactions } from '@/utils/mockData'
 
 export const profileApi = {
   getProfile() {
-    return withFallback(() => axiosClient.get('/me/'), { user: mockProfile }, { dedupeKey: 'profile:get' })
+    return axiosClient.get('/me/').then((response) => response?.data ?? response)
   },
   updateProfile(payload) {
-    return withFallback(() => axiosClient.put('/me/', payload), {
-      user: { ...mockProfile, ...payload },
-    })
+    const normalizedPayload = {}
+
+    if (typeof payload?.fullName === 'string') normalizedPayload.full_name = payload.fullName.trim()
+    if (typeof payload?.bio === 'string') normalizedPayload.bio = payload.bio.trim()
+    if (typeof payload?.campus === 'string') normalizedPayload.campus = payload.campus.trim()
+    if (typeof payload?.contact === 'string') normalizedPayload.contact = payload.contact.trim()
+    if (payload?.avatar !== undefined) normalizedPayload.avatar = payload.avatar
+
+    return axiosClient.put('/me/', normalizedPayload).then((response) => response?.data ?? response)
   },
   getTransactions() {
-    return withFallback(() => axiosClient.get('/me/transactions/'), {
-      items: mockTransactions,
-    }, { dedupeKey: 'profile:transactions' })
+    return axiosClient.get('/me/transactions/').then((response) => response?.data ?? response)
   },
   getPublicProfile(userId) {
-    return withFallback(() => axiosClient.get(`/users/${userId}/`), { user: mockProfile })
+    return axiosClient.get(`/users/${userId}/`).then((response) => response?.data ?? response)
   },
   getAdminUserProfile(userId) {
-    return withFallback(() => axiosClient.get(`/admin/users/${userId}/detail/`), {
-      user: {
-        ...mockProfile,
-        id: userId,
-        accountStatus: 'Active',
-        activeListings: 0,
-        inventoryUnits: 0,
-        soldOutListings: 0,
-      },
-    })
-  }
+    return axiosClient.get(`/admin/users/${userId}/detail/`).then((response) => response?.data ?? response)
+  },
 }

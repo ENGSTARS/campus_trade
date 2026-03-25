@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext'
 import { useAuth } from '@/context/AuthContext'
 import { useNotifications } from '@/context/NotificationContext'
 import { getListingPermissions } from '@/utils/listingPermissions'
+import { extractApiErrorMessage } from '@/utils/apiErrors'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ListingDetails } from '@/components/listings/ListingDetails'
@@ -54,88 +55,63 @@ function ListingDetailsPage() {
   )
   const permissions = resolvedListing ? getListingPermissions(resolvedListing, currentUser) : null
 
-  const syncSellerThread = async (message) => {
-    if (!resolvedListing || !currentUser?.id) return
-    try {
-      const conversation = await messagingApi.upsertConversation(
-        {
-          participantId: resolvedListing.sellerId,
-          name: resolvedListing.seller?.name,
-          listingId: resolvedListing.id,
-          senderId: currentUser.id,
-          senderName: currentUser.fullName || currentUser.email || 'Student',
-        },
-        currentUser.id,
-      )
-
-      await messagingApi.sendMessage(
-        conversation.id,
-        {
-          message,
-          participantId: resolvedListing.sellerId,
-          participantName: resolvedListing.seller?.name,
-          senderId: currentUser.id,
-          senderName: currentUser.fullName || currentUser.email || 'Student',
-          listingId: resolvedListing.id,
-        },
-        currentUser.id,
-      )
-    } catch {
-      // Keep order/offer successful even if chat sync fails.
-    }
-  }
-
-  const [guestOrderOpen, setGuestOrderOpen] = useState(false)
   const handleOrder = async () => {
     if (!permissions) return
     if (!permissions.isLoggedIn) {
-      setGuestOrderOpen(true)
+      navigate('/login', { state: { from: `/listings/${listingId}` } })
       return
     }
     if (!permissions.canBuyOrOffer) return
 
-    const created = await createOrderForListing(resolvedListing, currentUser)
-    if (!created) return
+    try {
+      const created = await createOrderForListing(resolvedListing, currentUser)
+      if (!created) return
 
-    setListing((previous) =>
-      previous
-        ? {
-            ...previous,
-            quantity: created.quantity,
-            status: created.status,
-          }
-        : previous,
-    )
-    setRelated((previous) =>
-      previous.map((item) =>
-        item.id === resolvedListing.id
+      setListing((previous) =>
+        previous
           ? {
-              ...item,
+              ...previous,
               quantity: created.quantity,
               status: created.status,
             }
-          : item,
-      ),
-    )
-    addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
-  }
-
-  // Guest order modal
-  const handleGuestOrder = async () => {
-    setGuestOrderOpen(false)
-    addToast({ type: 'info', message: 'Guest ordering is not enabled yet. Please sign in to place an order.' })
+          : previous,
+      )
+      setRelated((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(resolvedListing.id)
+            ? {
+                ...item,
+                quantity: created.quantity,
+                status: created.status,
+              }
+            : item,
+        ),
+      )
+      addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to place this order.') })
+    }
   }
 
   const handleReport = async (values) => {
     if (!permissions || !permissions.isLoggedIn || permissions.isOwner) return
-    await listingsApi.reportListing(listingId, values)
-    addToast({ type: 'info', message: 'Listing reported successfully' })
+    try {
+      await listingsApi.reportListing(listingId, values)
+      addToast({ type: 'info', message: 'Listing reported successfully' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to submit this report.') })
+    }
   }
 
   const handleReview = async (values) => {
     if (!permissions || !permissions.isLoggedIn || permissions.isOwner) return
-    await listingsApi.submitReview(listingId, values)
-    addToast({ type: 'success', message: 'Review submitted' })
+    try {
+      await listingsApi.submitReview(listingId, values)
+      addToast({ type: 'success', message: 'Review submitted' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to submit your review.') })
+      throw error
+    }
   }
 
   const handleEdit = () => {
@@ -143,38 +119,47 @@ function ListingDetailsPage() {
   }
 
   const handleDelete = async () => {
-    if (!permissions?.isOwner || !permissions.isAvailable) return
+    if (!permissions?.isOwner) return
     const shouldDelete = window.confirm('Delete this listing? This action cannot be undone.')
     if (!shouldDelete) return
 
-    const deleted = await deleteListing(listingId)
-    if (!deleted) return
-    addToast({ type: 'success', message: 'Listing deleted' })
-    navigate('/')
+    try {
+      const deleted = await deleteListing(listingId)
+      if (!deleted) return
+      addToast({ type: 'success', message: 'Listing deleted' })
+      navigate('/')
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this listing.') })
+    }
   }
 
   const handleMarkStatus = async (status) => {
     if (!permissions?.isOwner || !permissions.isAvailable) return
-    const updated = await updateListingStatus(listingId, status)
-    if (!updated) return
-    addToast({ type: 'success', message: `Listing marked as ${status.toLowerCase()}` })
+    try {
+      const updated = await updateListingStatus(listingId, status)
+      if (!updated) return
+      addToast({ type: 'success', message: `Listing marked as ${status.toLowerCase()}` })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to update listing status.') })
+    }
   }
 
   const handleMessageSeller = async () => {
     if (!permissions?.canMessageSeller) return
-    const conversation = await messagingApi.upsertConversation({
-      participantId: resolvedListing.sellerId,
-      name: resolvedListing.seller?.name,
-      listingId: resolvedListing.id,
-      senderId: currentUser?.id,
-      senderName: currentUser?.fullName || currentUser?.email || 'Student',
-    }, currentUser?.id)
+    try {
+      const conversation = await messagingApi.upsertConversation({
+        participantId: resolvedListing.sellerId,
+        listingId: resolvedListing.id,
+      })
 
-    navigate('/messages', {
-      state: {
-        conversationId: conversation.id,
-      },
-    })
+      navigate('/messages', {
+        state: {
+          conversationId: conversation.id,
+        },
+      })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to open this conversation.') })
+    }
   }
 
   const handleRelatedEdit = (item) => {
@@ -185,14 +170,18 @@ function ListingDetailsPage() {
   const handleRelatedDelete = async (item) => {
     if (!item?.id) return
     const relatedPermissions = getListingPermissions(item, currentUser)
-    if (!relatedPermissions.isOwner || !relatedPermissions.isAvailable) return
+    if (!relatedPermissions.isOwner) return
     const shouldDelete = window.confirm('Delete this listing? This action cannot be undone.')
     if (!shouldDelete) return
 
-    const deleted = await deleteListing(item.id)
-    if (!deleted) return
-    setRelated((previous) => previous.filter((listing) => listing.id !== item.id))
-    addToast({ type: 'success', message: 'Listing deleted' })
+    try {
+      const deleted = await deleteListing(item.id)
+      if (!deleted) return
+      setRelated((previous) => previous.filter((listing) => String(listing.id) !== String(item.id)))
+      addToast({ type: 'success', message: 'Listing deleted' })
+    } catch (error) {
+      addToast({ type: 'error', message: extractApiErrorMessage(error, 'Unable to delete this listing.') })
+    }
   }
 
   if (isLoading) {
@@ -235,26 +224,6 @@ function ListingDetailsPage() {
 
       <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} onSubmit={handleReport} />
       <ReviewModal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={handleReview} />
-      {guestOrderOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
-            <h2 className="text-lg font-bold mb-2">Guest Order</h2>
-            <form className="space-y-3" onSubmit={e => {
-              e.preventDefault();
-              handleGuestOrder();
-            }}>
-              <input name="name" required placeholder="Full Name" className="input-base w-full" />
-              <input name="email" required type="email" placeholder="Email" className="input-base w-full" />
-              <input name="phone" required placeholder="Phone Number" className="input-base w-full" />
-              <input name="pickupLocation" required placeholder="Pickup Location" className="input-base w-full" />
-              <div className="flex gap-2 pt-2">
-                <button type="button" className="btn-secondary" onClick={() => setGuestOrderOpen(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Place Order</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

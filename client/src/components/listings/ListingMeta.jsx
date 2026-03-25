@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -21,6 +20,7 @@ export function ListingMeta({
     listing,
     currentUser,
   )
+  const canMarkReserved = isAvailable && Number(listing.quantity ?? 0) === 1
 
   return (
     <Card className="space-y-4">
@@ -60,25 +60,21 @@ export function ListingMeta({
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
         {isOwner ? (
           <>
-            <Button variant="secondary" onClick={onEdit} disabled={!isAvailable}>
+            <Button variant="secondary" onClick={onEdit}>
               Edit Listing
             </Button>
-            <Button variant="danger" onClick={onDelete} disabled={!isAvailable}>
+            <Button variant="danger" onClick={onDelete}>
               Delete Listing
             </Button>
-            <Button variant="secondary" onClick={() => onMarkStatus('RESERVED')} disabled={!isAvailable}>
+            <Button variant="secondary" onClick={() => onMarkStatus('RESERVED')} disabled={!canMarkReserved}>
               Mark Reserved
             </Button>
             <Button variant="secondary" onClick={() => onMarkStatus('SOLD')} disabled={!isAvailable}>
               Mark Sold
             </Button>
           </>
-        ) : !isLoggedIn ? (
-          <Link to="/login" className="btn-primary">
-            Login to Continue
-          </Link>
         ) : (
-          <Button onClick={onOrder} disabled={!canBuyOrOffer}>
+          <Button onClick={onOrder} disabled={isLoggedIn ? !canBuyOrOffer : !isAvailable}>
             Place Order
           </Button>
         )}
@@ -108,6 +104,10 @@ export function ListingMeta({
         {!isAvailable ? (
           <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
             Listing is not available right now.
+          </span>
+        ) : Number(listing.quantity ?? 0) !== 1 && isOwner ? (
+          <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
+            Mark Reserved is only available for single-quantity listings.
           </span>
         ) : null}
       </div>

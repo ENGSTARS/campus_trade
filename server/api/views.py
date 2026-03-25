@@ -290,7 +290,9 @@ def messaging_conversation_detail(request, conversation_id):
         return Response({"items": items})
 
     if request.method == "DELETE":
-        conversation.delete()
+        ConversationParticipant.objects.filter(conversation=conversation, user=request.user).delete()
+        if not ConversationParticipant.objects.filter(conversation=conversation).exists():
+            conversation.delete()
         return Response({"success": True, "id": conversation_id})
 
     body = (request.data.get("message") or "").strip()

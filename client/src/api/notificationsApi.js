@@ -1,21 +1,13 @@
 import { axiosClient } from './axiosClient'
-import { withFallback } from './fallback'
-import { mockNotifications } from '@/utils/mockData'
 
 export const notificationsApi = {
   getNotifications() {
-    return withFallback(() => axiosClient.get('/notifications'), {
-      items: mockNotifications,
-    }, { dedupeKey: 'notifications:list' })
+    return axiosClient.get('/notifications').then((response) => response?.data ?? response)
   },
   markAsRead(id) {
-    return withFallback(() => axiosClient.patch(`/notifications/${id}/read`), {
-      success: true,
-    })
+    return axiosClient.patch(`/notifications/${id}/read`).then((response) => response?.data ?? response)
   },
   markAllRead() {
-    return withFallback(() => axiosClient.patch('/notifications/read-all'), {
-      success: true,
-    })
+    return axiosClient.patch('/notifications/read-all').then((response) => response?.data ?? response)
   },
 }
