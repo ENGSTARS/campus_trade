@@ -1,1 +1,0 @@
-import{u as e,j as o}from"./index-CnzTMbmw.js";import{E as a}from"./EmptyState-C0CFcxOV.js";function i(){const t=e();return o.jsx(a,{title:"Page not found",description:"The page you requested does not exist.",actionLabel:"Back to home",onAction:()=>t("/")})}export{i as default};

@@ -1,20 +1,61 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { notificationsApi } from '@/api/notificationsApi'
+import { useAuth } from '@/context/AuthContext'
 import { useFirebaseNotifications } from '@/hooks/useFirebaseNotifications'
 
 const NotificationContext = createContext(null)
+const NOTIFICATION_POLL_MS = 15000
 
 export function NotificationProvider({ children }) {
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [toasts, setToasts] = useState([])
 
   useEffect(() => {
-    async function loadNotifications() {
-      const data = await notificationsApi.getNotifications()
-      setNotifications(data?.items || [])
+    if (!user?.id) {
+      setNotifications([])
+      return undefined
     }
-    // loadNotifications()
-  }, [])
+
+    let isMounted = true
+
+    async function loadNotifications(showToastForNew = false) {
+      const data = await notificationsApi.getNotifications()
+      if (!isMounted) return
+
+      const nextItems = data?.items || []
+      setNotifications((previous) => {
+        if (showToastForNew) {
+          const previousIds = new Set(previous.map((item) => item.id))
+          const newItems = nextItems.filter((item) => !previousIds.has(item.id))
+          newItems.forEach((item) => {
+            addToast({ type: 'info', message: item.title })
+          })
+        }
+        return nextItems
+      })
+    }
+
+    loadNotifications()
+
+    const intervalId = setInterval(() => {
+      loadNotifications(true)
+    }, NOTIFICATION_POLL_MS)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications(true)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [user?.id])
 
   const addNotification = (payload) => {
     const notification = {

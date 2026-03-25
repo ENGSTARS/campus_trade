@@ -3,6 +3,7 @@ import { mockConversations, mockMessages } from '@/utils/mockData'
 
 const CONVERSATIONS_STORAGE_KEY = 'campustrade-local-conversations'
 const MESSAGES_STORAGE_KEY = 'campustrade-local-messages'
+const LEGACY_MESSAGING_PURGED_KEY = 'campustrade-local-messaging-purged-v1'
 
 function getConversationsStorageKey(userId) {
   return `${CONVERSATIONS_STORAGE_KEY}:${userId || 'guest'}`
@@ -10,6 +11,23 @@ function getConversationsStorageKey(userId) {
 
 function getMessagesStorageKey(userId) {
   return `${MESSAGES_STORAGE_KEY}:${userId || 'guest'}`
+}
+
+function purgeLegacyMessagingCache() {
+  if (typeof window === 'undefined' || !window.localStorage) return
+  if (localStorage.getItem(LEGACY_MESSAGING_PURGED_KEY) === '1') return
+
+  const keysToRemove = []
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index)
+    if (!key) continue
+    if (key.startsWith(`${CONVERSATIONS_STORAGE_KEY}:`) || key.startsWith(`${MESSAGES_STORAGE_KEY}:`)) {
+      keysToRemove.push(key)
+    }
+  }
+
+  keysToRemove.forEach((key) => localStorage.removeItem(key))
+  localStorage.setItem(LEGACY_MESSAGING_PURGED_KEY, '1')
 }
 
 function readLocalConversations(userId) {
@@ -76,6 +94,28 @@ function upsertLocalConversation(userId, nextConversation) {
   writeLocalConversations(userId, sortByDateDesc(nextList))
 }
 
+function appendLocalMessage(userId, conversationId, nextMessage) {
+  const localMessages = readLocalMessages(userId)
+  const currentMessages = localMessages[conversationId] || []
+  localMessages[conversationId] = [...currentMessages, nextMessage]
+  writeLocalMessages(userId, localMessages)
+}
+
+function removeLocalConversation(userId, conversationId) {
+  const localConversations = readLocalConversations(userId).filter(
+    (conversation) => conversation.id !== conversationId,
+  )
+  writeLocalConversations(userId, localConversations)
+
+  const localMessages = readLocalMessages(userId)
+  if (localMessages[conversationId]) {
+    delete localMessages[conversationId]
+    writeLocalMessages(userId, localMessages)
+  }
+}
+
+purgeLegacyMessagingCache()
+
 export const messagingApi = {
   async getConversations(userId) {
     let baseConversations = mockConversations
@@ -107,6 +147,16 @@ export const messagingApi = {
     }
   },
   async sendMessage(conversationId, payload, userId) {
+    try {
+      const response = await axiosClient.post(`/messaging/conversations/${conversationId}`, payload)
+      return {
+        success: true,
+        item: response?.data?.item || response?.item || null,
+      }
+    } catch {
+      // Fall back to local-only persistence if API is unavailable.
+    }
+
     const createdAt = new Date().toISOString()
     const nextMessage = {
       id: `m-local-${Date.now()}`,
@@ -114,11 +164,12 @@ export const messagingApi = {
       message: payload.message,
       createdAt,
     }
+    const mirroredMessage = {
+      ...nextMessage,
+      fromMe: false,
+    }
 
-    const localMessages = readLocalMessages(userId)
-    const currentMessages = localMessages[conversationId] || []
-    localMessages[conversationId] = [...currentMessages, nextMessage]
-    writeLocalMessages(userId, localMessages)
+    appendLocalMessage(userId, conversationId, nextMessage)
 
     const existingConversation =
       mergeConversations(mockConversations, readLocalConversations(userId)).find(
@@ -140,10 +191,17 @@ export const messagingApi = {
       updatedAt: createdAt,
     })
 
-    try {
-      await axiosClient.post(`/messaging/conversations/${conversationId}`, payload)
-    } catch {
-      // Keep local persistence if API is unavailable.
+    if (payload.participantId) {
+      appendLocalMessage(payload.participantId, conversationId, mirroredMessage)
+      upsertLocalConversation(payload.participantId, {
+        id: conversationId,
+        participantId: payload.senderId || userId,
+        name: payload.senderName || 'Conversation',
+        unread: 1,
+        lastMessage: payload.message,
+        updatedAt: createdAt,
+        listingId: payload.listingId,
+      })
     }
 
     return {
@@ -152,6 +210,14 @@ export const messagingApi = {
     }
   },
   async upsertConversation(payload, userId) {
+    try {
+      const response = await axiosClient.post('/messaging/conversations', payload)
+      const item = response?.data?.item || response?.item || null
+      if (item) return item
+    } catch {
+      // Fall back to local-only persistence if API is unavailable.
+    }
+
     const allConversationsResponse = await this.getConversations(userId)
     const allConversations = allConversationsResponse?.items || []
     const existing = allConversations.find(
@@ -166,6 +232,17 @@ export const messagingApi = {
         listingId: payload.listingId || existing.listingId,
       }
       upsertLocalConversation(userId, updated)
+      if (payload.participantId) {
+        upsertLocalConversation(payload.participantId, {
+          id: updated.id,
+          participantId: payload.senderId || userId,
+          name: payload.senderName || 'Conversation',
+          unread: 0,
+          lastMessage: updated.lastMessage || '',
+          updatedAt: updated.updatedAt,
+          listingId: updated.listingId,
+        })
+      }
       return updated
     }
 
@@ -179,6 +256,30 @@ export const messagingApi = {
       listingId: payload.listingId,
     }
     upsertLocalConversation(userId, nextConversation)
+    if (payload.participantId) {
+      upsertLocalConversation(payload.participantId, {
+        id: nextConversation.id,
+        participantId: payload.senderId || userId,
+        name: payload.senderName || 'Conversation',
+        unread: 0,
+        lastMessage: '',
+        updatedAt: nextConversation.updatedAt,
+        listingId: payload.listingId,
+      })
+    }
     return nextConversation
+  },
+  async deleteConversation(conversationId, userId, participantId) {
+    try {
+      await axiosClient.delete(`/messaging/conversations/${conversationId}`)
+    } catch {
+      // Fall back to local-only cleanup if API is unavailable.
+    }
+
+    removeLocalConversation(userId, conversationId)
+    if (participantId) {
+      removeLocalConversation(participantId, conversationId)
+    }
+    return { success: true, id: conversationId }
   },
 }

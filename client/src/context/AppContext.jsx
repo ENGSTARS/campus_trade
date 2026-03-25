@@ -43,6 +43,10 @@ const initialFilters = {
   campus: defaultCampus,
 }
 
+function idsEqual(left, right) {
+  return String(left) === String(right)
+}
+
 export function AppProvider({ children }) {
   const { user: currentUser } = useAuth()
   const [filters, setFilters] = useState(initialFilters)
@@ -173,7 +177,7 @@ export function AppProvider({ children }) {
 
     setListings((previous) =>
       previous.map((listing) =>
-        listing.id === listingId ? { ...listing, isWishlisted: nextIsWishlisted } : listing,
+        idsEqual(listing.id, listingId) ? { ...listing, isWishlisted: nextIsWishlisted } : listing,
       ),
     )
     await listingsApi.toggleWishlist(listingId)
@@ -181,25 +185,25 @@ export function AppProvider({ children }) {
   }
 
   const updateListing = async (listingId, patch) => {
-    const currentListing = listings.find((listing) => listing.id === listingId)
+    const currentListing = listings.find((listing) => idsEqual(listing.id, listingId))
     if (!currentListing) return null
     if (currentListing.sellerId !== currentUser?.id) return null
 
     const optimisticListing = { ...currentListing, ...patch }
     setListings((previous) =>
-      previous.map((listing) => (listing.id === listingId ? { ...listing, ...patch } : listing)),
+      previous.map((listing) => (idsEqual(listing.id, listingId) ? { ...listing, ...patch } : listing)),
     )
 
     const response = await listingsApi.updateListing(listingId, patch)
     const updatedListing = response?.item ? { ...currentListing, ...response.item } : optimisticListing
     setListings((previous) =>
-      previous.map((listing) => (listing.id === listingId ? { ...listing, ...updatedListing } : listing)),
+      previous.map((listing) => (idsEqual(listing.id, listingId) ? { ...listing, ...updatedListing } : listing)),
     )
     return updatedListing
   }
 
   const updateListingStatus = async (listingId, status) => {
-    const currentListing = listings.find((listing) => listing.id === listingId)
+    const currentListing = listings.find((listing) => idsEqual(listing.id, listingId))
     if (!currentListing) return false
     if (currentListing.sellerId !== currentUser?.id) return false
 
@@ -207,13 +211,13 @@ export function AppProvider({ children }) {
       status === 'SOLD' ? { status, quantity: 0 } : { status }
 
     setListings((previous) =>
-      previous.map((listing) => (listing.id === listingId ? { ...listing, ...optimisticPatch } : listing)),
+      previous.map((listing) => (idsEqual(listing.id, listingId) ? { ...listing, ...optimisticPatch } : listing)),
     )
 
     const response = await listingsApi.updateListingStatus(listingId, status)
     setListings((previous) =>
       previous.map((listing) =>
-        listing.id === listingId
+        idsEqual(listing.id, listingId)
           ? {
               ...listing,
               status: response?.status || status,
@@ -227,11 +231,11 @@ export function AppProvider({ children }) {
   }
 
   const deleteListing = async (listingId) => {
-    const currentListing = listings.find((listing) => listing.id === listingId)
+    const currentListing = listings.find((listing) => idsEqual(listing.id, listingId))
     if (!currentListing) return false
     if (currentListing.sellerId !== currentUser?.id) return false
 
-    setListings((previous) => previous.filter((listing) => listing.id !== listingId))
+    setListings((previous) => previous.filter((listing) => !idsEqual(listing.id, listingId)))
     await listingsApi.deleteListing(listingId)
     return true
   }
@@ -289,7 +293,6 @@ export function AppProvider({ children }) {
     if (!listing?.id || !user?.id) return null
     if (listing.sellerId === user.id) return null
     if (listing.status !== 'AVAILABLE') return null
-    if (transactions.some((item) => item.listingId === listing.id && item.buyerId === user.id)) return null
 
     const nextTransaction = {
       id: `t-${Date.now()}`,
@@ -306,7 +309,7 @@ export function AppProvider({ children }) {
     const response = await listingsApi.createOrder(listing.id)
     setListings((previous) =>
       previous.map((item) =>
-        item.id === listing.id
+        idsEqual(item.id, listing.id)
           ? {
               ...item,
               quantity:
@@ -318,7 +321,16 @@ export function AppProvider({ children }) {
           : item,
       ),
     )
-    return nextTransaction
+    return {
+      transaction: nextTransaction,
+      quantity:
+        typeof response?.quantity === 'number'
+          ? response.quantity
+          : Math.max(0, Number(listing.quantity ?? 1) - 1),
+      status:
+        response?.status ||
+        (typeof response?.quantity === 'number' && response.quantity === 0 ? 'SOLD' : listing.status),
+    }
   }
 
   const value = useMemo(

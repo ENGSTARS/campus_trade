@@ -6,13 +6,22 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.db import transaction
+from django.db.models import Count, F, Prefetch, Q
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 
-from .models import Profile
-from .serializers import RegisterSerializer, ProfileSerializer, EmailTokenObtainPairSerializer
+from .models import Conversation, ConversationParticipant, Message, Notification, Profile
+from .serializers import (
+    ConversationSerializer,
+    EmailTokenObtainPairSerializer,
+    MessageSerializer,
+    NotificationSerializer,
+    ProfileSerializer,
+    RegisterSerializer,
+)
 from rest_framework_simplejwt.views import TokenObtainPairView
 from listings.models import Order, Listing, Report
 from listings.serializers import OrderSerializer
@@ -132,6 +141,178 @@ def profile_transactions(request):
     items = items.order_by("-created_at")
     serializer = OrderSerializer(items, many=True)
     return Response({"items": serializer.data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def notifications_list(request):
+    items = Notification.objects.filter(recipient=request.user)
+    serializer = NotificationSerializer(items, many=True)
+    return Response({"items": serializer.data})
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def notification_mark_read(request, notification_id):
+    notification = get_object_or_404(Notification, pk=notification_id, recipient=request.user)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=["is_read"])
+    return Response({"success": True, "id": notification.id, "isRead": notification.is_read})
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def notifications_mark_all_read(request):
+    Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    return Response({"success": True})
+
+
+def build_conversation_payload(conversation, current_user):
+    other_link = next(
+        (link for link in conversation.participant_links.all() if link.user_id != current_user.id),
+        None,
+    )
+    current_link = next(
+        (link for link in conversation.participant_links.all() if link.user_id == current_user.id),
+        None,
+    )
+    last_message = conversation.messages.last()
+    payload = ConversationSerializer(conversation).data
+    payload.update(
+        {
+            "participantId": other_link.user_id if other_link else current_user.id,
+            "name": (
+                other_link.user.profile.full_name
+                or other_link.user.email
+                if other_link
+                else current_user.profile.full_name or current_user.email
+            ),
+            "unread": current_link.unread_count if current_link else 0,
+            "lastMessage": last_message.body if last_message else "",
+        }
+    )
+    return payload
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def messaging_conversations(request):
+    if request.method == "GET":
+        conversations = (
+            Conversation.objects.filter(participants=request.user)
+            .prefetch_related(
+                Prefetch(
+                    "participant_links",
+                    queryset=ConversationParticipant.objects.select_related("user__profile"),
+                ),
+                "messages",
+            )
+            .distinct()
+        )
+        return Response(
+            {"items": [build_conversation_payload(conversation, request.user) for conversation in conversations]}
+        )
+
+    participant_id = request.data.get("participantId")
+    if not participant_id:
+        return Response({"error": "participantId is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    participant = get_object_or_404(User, pk=participant_id)
+    if participant == request.user:
+        return Response({"error": "You cannot message yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+    listing_id = request.data.get("listingId")
+    filters = Q(participants=request.user) & Q(participants=participant)
+    if listing_id:
+        filters &= Q(listing_id=listing_id)
+    else:
+        filters &= Q(listing__isnull=True)
+
+    conversation = (
+        Conversation.objects.filter(filters)
+        .annotate(participant_total=Count("participants", distinct=True))
+        .filter(participant_total=2)
+        .prefetch_related(
+            Prefetch(
+                "participant_links",
+                queryset=ConversationParticipant.objects.select_related("user__profile"),
+            ),
+            "messages",
+        )
+        .first()
+    )
+
+    if conversation is None:
+        with transaction.atomic():
+            conversation = Conversation.objects.create(listing_id=listing_id or None)
+            ConversationParticipant.objects.create(conversation=conversation, user=request.user)
+            ConversationParticipant.objects.create(conversation=conversation, user=participant)
+        conversation = (
+            Conversation.objects.filter(pk=conversation.pk)
+            .prefetch_related(
+                Prefetch(
+                    "participant_links",
+                    queryset=ConversationParticipant.objects.select_related("user__profile"),
+                ),
+                "messages",
+            )
+            .get()
+        )
+
+    return Response({"item": build_conversation_payload(conversation, request.user)})
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def messaging_conversation_detail(request, conversation_id):
+    conversation = get_object_or_404(
+        Conversation.objects.prefetch_related(
+            Prefetch(
+                "participant_links",
+                queryset=ConversationParticipant.objects.select_related("user__profile"),
+            ),
+            "messages__sender",
+        ),
+        pk=conversation_id,
+        participants=request.user,
+    )
+
+    if request.method == "GET":
+        ConversationParticipant.objects.filter(conversation=conversation, user=request.user).update(unread_count=0)
+        items = [
+            {
+                **MessageSerializer(message).data,
+                "fromMe": message.sender_id == request.user.id,
+            }
+            for message in conversation.messages.all()
+        ]
+        return Response({"items": items})
+
+    if request.method == "DELETE":
+        conversation.delete()
+        return Response({"success": True, "id": conversation_id})
+
+    body = (request.data.get("message") or "").strip()
+    if not body:
+        return Response({"error": "message is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        message = Message.objects.create(conversation=conversation, sender=request.user, body=body)
+        ConversationParticipant.objects.filter(conversation=conversation).exclude(user=request.user).update(
+            unread_count=F("unread_count") + 1
+        )
+        ConversationParticipant.objects.filter(conversation=conversation, user=request.user).update(unread_count=0)
+
+    return Response(
+        {
+            "item": {
+                **MessageSerializer(message).data,
+                "fromMe": True,
+            }
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET"])

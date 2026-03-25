@@ -71,7 +71,13 @@ export const listingsApi = {
     })
   },
   submitReview(id, payload) {
-    return withFallback(() => axiosClient.post(`/listings/${id}/review/`, payload), {
+    const normalizedPayload = {
+      ...payload,
+      content: payload?.content ?? payload?.comment ?? '',
+    }
+    delete normalizedPayload.comment
+
+    return withFallback(() => axiosClient.post(`/listings/${id}/review/`, normalizedPayload), {
       success: true,
     })
   },

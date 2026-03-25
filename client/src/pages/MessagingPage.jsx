@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { messagingApi } from '@/api/messagingApi'
 import { useAuth } from '@/context/AuthContext'
+import { useNotifications } from '@/context/NotificationContext'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -12,6 +13,7 @@ function MessagingPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user: currentUser } = useAuth()
+  const { addToast } = useNotifications()
   const [conversations, setConversations] = useState([])
   const [activeConversationId, setActiveConversationId] = useState('')
   const [messages, setMessages] = useState([])
@@ -86,6 +88,9 @@ function MessagingPage() {
       message,
       participantId: activeConversation?.participantId,
       participantName: activeConversation?.name,
+      senderId: currentUser?.id,
+      senderName: currentUser?.fullName || currentUser?.email || 'Student',
+      listingId: activeConversation?.listingId,
     }, currentUser?.id)
     const sentMessage = response?.item
     if (!sentMessage) return
@@ -99,6 +104,29 @@ function MessagingPage() {
       )
       return [...next].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     })
+  }
+
+  const deleteConversation = async (conversation) => {
+    if (!conversation?.id) return
+    const shouldDelete = window.confirm(`Delete this conversation with ${conversation.name}?`)
+    if (!shouldDelete) return
+
+    await messagingApi.deleteConversation(conversation.id, currentUser?.id, conversation.participantId)
+    const nextConversations = conversations.filter((item) => item.id !== conversation.id)
+    setConversations(nextConversations)
+
+    if (activeConversationId === conversation.id) {
+      const nextActiveId = nextConversations[0]?.id || ''
+      setActiveConversationId(nextActiveId)
+      if (nextActiveId) {
+        const data = await messagingApi.getMessages(nextActiveId, currentUser?.id)
+        setMessages(data?.items || [])
+      } else {
+        setMessages([])
+      }
+    }
+
+    addToast({ type: 'success', message: 'Conversation deleted' })
   }
 
   if (isLoading) {
@@ -123,6 +151,7 @@ function MessagingPage() {
       <ConversationList
         conversations={conversations}
         activeConversationId={activeConversationId}
+        onDelete={deleteConversation}
         onSelect={selectConversation}
       />
       <ChatWindow

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from decouple import config
 import base64
 import requests
+from api.models import Notification
 from .models import (
     Listing, Wishlist, Review,
     Report, Order, Offer
@@ -250,6 +251,11 @@ class CreateOrderView(APIView):
 
     def post(self, request, pk):
         listing = get_object_or_404(Listing, pk=pk, status='AVAILABLE')
+        if listing.seller_id == request.user.id:
+            return Response(
+                {'error': 'You cannot place an order on your own listing.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if listing.quantity <= 0:
             return Response(
                 {'error': 'This item is out of stock.'},
@@ -264,6 +270,11 @@ class CreateOrderView(APIView):
         listing.quantity = max(0, listing.quantity - 1)
         listing.status = 'SOLD' if listing.quantity == 0 else 'AVAILABLE'
         listing.save(update_fields=['quantity', 'status'])
+        Notification.objects.create(
+            recipient=listing.seller,
+            title='New order placed',
+            body=f'{request.user.profile.full_name or request.user.email} placed an order for "{listing.title}".',
+        )
         return Response({
             'success':  True,
             'message':  'Order request placed',

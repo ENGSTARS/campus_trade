@@ -20,6 +20,7 @@ function HomePage() {
     filters,
     updateFilters,
     resetFilters,
+    createOrderForListing,
     filteredListings,
     isListingsLoading,
     listingsError,
@@ -55,6 +56,17 @@ function HomePage() {
     const deleted = await deleteListing(listing.id)
     if (!deleted) return
     addToast({ type: 'success', message: 'Listing deleted' })
+  }
+
+  const handleOrderListing = async (listing) => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    const created = await createOrderForListing(listing, currentUser)
+    if (!created) return
+    addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
   }
 
   return (
@@ -101,6 +113,7 @@ function HomePage() {
             currentUser={currentUser}
             onEditListing={handleEditListing}
             onDeleteListing={handleDeleteListing}
+            onOrderListing={handleOrderListing}
           />
           <Pagination currentPage={safePage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </motion.section>

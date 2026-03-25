@@ -2,7 +2,7 @@ import { ListingCard } from './ListingCard'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 
-export function ListingsGrid({ listings, loading, currentUser, onEditListing, onDeleteListing }) {
+export function ListingsGrid({ listings, loading, currentUser, onDeleteListing, onEditListing, onOrderListing }) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -38,6 +38,7 @@ export function ListingsGrid({ listings, loading, currentUser, onEditListing, on
           currentUser={currentUser}
           onEdit={onEditListing}
           onDelete={onDeleteListing}
+          onOrder={onOrderListing}
         />
       ))}
     </div>

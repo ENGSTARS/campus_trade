@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile, UniversityEmail
+from .models import Conversation, Message, Notification, Profile, UniversityEmail
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 import re
 
@@ -115,3 +115,35 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if data["new_password"] != data["confirm_password"]:
             raise serializers.ValidationError("Passwords do not match")
         return data
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    isRead = serializers.BooleanField(source="is_read", read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ["id", "title", "body", "isRead", "createdAt"]
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
+    participantId = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    unread = serializers.IntegerField(read_only=True)
+    lastMessage = serializers.CharField(read_only=True)
+    listingId = serializers.IntegerField(source="listing_id", read_only=True)
+
+    class Meta:
+        model = Conversation
+        fields = ["id", "participantId", "name", "unread", "lastMessage", "updatedAt", "listingId"]
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    message = serializers.CharField(source="body", read_only=True)
+    fromMe = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ["id", "message", "createdAt", "fromMe"]

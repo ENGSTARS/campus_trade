@@ -10,7 +10,6 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ListingDetails } from '@/components/listings/ListingDetails'
 import { RelatedListings } from '@/components/listings/RelatedListings'
-import { OfferModal } from '@/components/listings/OfferModal'
 import { ReportModal } from '@/components/listings/ReportModal'
 import { ReviewModal } from '@/components/listings/ReviewModal'
 
@@ -26,7 +25,6 @@ function ListingDetailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [offerOpen, setOfferOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
@@ -51,7 +49,7 @@ function ListingDetailsPage() {
   }, [listingId])
 
   const resolvedListing = useMemo(
-    () => listings.find((item) => item.id === listingId) || listing,
+    () => listings.find((item) => String(item.id) === String(listingId)) || listing,
     [listings, listingId, listing],
   )
   const permissions = resolvedListing ? getListingPermissions(resolvedListing, currentUser) : null
@@ -64,6 +62,8 @@ function ListingDetailsPage() {
           participantId: resolvedListing.sellerId,
           name: resolvedListing.seller?.name,
           listingId: resolvedListing.id,
+          senderId: currentUser.id,
+          senderName: currentUser.fullName || currentUser.email || 'Student',
         },
         currentUser.id,
       )
@@ -74,27 +74,15 @@ function ListingDetailsPage() {
           message,
           participantId: resolvedListing.sellerId,
           participantName: resolvedListing.seller?.name,
+          senderId: currentUser.id,
+          senderName: currentUser.fullName || currentUser.email || 'Student',
+          listingId: resolvedListing.id,
         },
         currentUser.id,
       )
     } catch {
       // Keep order/offer successful even if chat sync fails.
     }
-  }
-
-  const handleOffer = async (values) => {
-    if (!permissions) return
-    if (!permissions.isLoggedIn) {
-      navigate('/login')
-      return
-    }
-    if (!permissions.canBuyOrOffer) return
-    await listingsApi.submitOffer(listingId, values)
-    const summary = values.note?.trim()
-      ? `Hi! I sent an offer of $${values.amount}. Note: ${values.note.trim()}`
-      : `Hi! I sent an offer of $${values.amount}.`
-    await syncSellerThread(summary)
-    addToast({ type: 'success', message: 'Offer sent to seller' })
   }
 
   const [guestOrderOpen, setGuestOrderOpen] = useState(false)
@@ -109,21 +97,33 @@ function ListingDetailsPage() {
     const created = await createOrderForListing(resolvedListing, currentUser)
     if (!created) return
 
-    setListing((previous) => (previous ? { ...previous, status: 'SOLD' } : previous))
-    setRelated((previous) =>
-      previous.map((item) => (item.id === resolvedListing.id ? { ...item, status: 'SOLD' } : item)),
+    setListing((previous) =>
+      previous
+        ? {
+            ...previous,
+            quantity: created.quantity,
+            status: created.status,
+          }
+        : previous,
     )
-    await syncSellerThread(`Hi! I placed an order for "${resolvedListing.title}".`)
-    addToast({ type: 'success', message: 'Order placed. You can now message the seller.' })
+    setRelated((previous) =>
+      previous.map((item) =>
+        item.id === resolvedListing.id
+          ? {
+              ...item,
+              quantity: created.quantity,
+              status: created.status,
+            }
+          : item,
+      ),
+    )
+    addToast({ type: 'success', message: 'Order placed. The seller has been notified.' })
   }
 
   // Guest order modal
-  const handleGuestOrder = async (guestDetails) => {
-    // guestDetails: { name, email, phone, pickupLocation }
-    // You would send this to backend or seller
+  const handleGuestOrder = async () => {
     setGuestOrderOpen(false)
-    addToast({ type: 'success', message: 'Order placed. Seller will contact you for pickup.' })
-    await syncSellerThread(`Guest order: ${guestDetails.name}, ${guestDetails.email}, ${guestDetails.phone}, Pickup: ${guestDetails.pickupLocation}`)
+    addToast({ type: 'info', message: 'Guest ordering is not enabled yet. Please sign in to place an order.' })
   }
 
   const handleReport = async (values) => {
@@ -166,6 +166,8 @@ function ListingDetailsPage() {
       participantId: resolvedListing.sellerId,
       name: resolvedListing.seller?.name,
       listingId: resolvedListing.id,
+      senderId: currentUser?.id,
+      senderName: currentUser?.fullName || currentUser?.email || 'Student',
     }, currentUser?.id)
 
     navigate('/messages', {
@@ -215,7 +217,6 @@ function ListingDetailsPage() {
       <ListingDetails
         listing={resolvedListing}
         currentUser={currentUser}
-        onOffer={() => setOfferOpen(true)}
         onOrder={handleOrder}
         onReport={() => setReportOpen(true)}
         onReview={() => setReviewOpen(true)}
@@ -232,7 +233,6 @@ function ListingDetailsPage() {
         onDeleteListing={handleRelatedDelete}
       />
 
-      <OfferModal isOpen={offerOpen} onClose={() => setOfferOpen(false)} onSubmit={handleOffer} />
       <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} onSubmit={handleReport} />
       <ReviewModal isOpen={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={handleReview} />
       {guestOrderOpen && (
@@ -241,13 +241,7 @@ function ListingDetailsPage() {
             <h2 className="text-lg font-bold mb-2">Guest Order</h2>
             <form className="space-y-3" onSubmit={e => {
               e.preventDefault();
-              const form = e.target;
-              handleGuestOrder({
-                name: form.name.value,
-                email: form.email.value,
-                phone: form.phone.value,
-                pickupLocation: form.pickupLocation.value,
-              });
+              handleGuestOrder();
             }}>
               <input name="name" required placeholder="Full Name" className="input-base w-full" />
               <input name="email" required type="email" placeholder="Email" className="input-base w-full" />

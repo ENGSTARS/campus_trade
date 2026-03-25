@@ -7,6 +7,10 @@ class Listing(models.Model):
         ('RESERVED', 'Reserved'),
         ('SOLD', 'Sold'),
     ]
+    TYPE_CHOICES = [
+        ('NEW', 'New'),
+        ('SECOND_HAND', 'Second Hand'),
+    ]
     
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listings')
     title = models.CharField(max_length=255)
@@ -15,7 +19,7 @@ class Listing(models.Model):
     category = models.CharField(max_length=100)
     campus = models.CharField(max_length=100, blank=True, null=True)
     condition = models.CharField(max_length=50) # e.g., 'New', 'Used'
-    type = models.CharField(max_length=50)      # e.g., 'Sale', 'Rent'
+    type = models.CharField(max_length=50, choices=TYPE_CHOICES)
     
     is_active = models.BooleanField(default=True) # For soft-delete
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='AVAILABLE')

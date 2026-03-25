@@ -6,8 +6,8 @@ import { formatPrice } from '@/utils/formatters'
 import { getListingPermissions } from '@/utils/listingPermissions'
 import { SaveWishlistButton } from './SaveWishlistButton'
 
-export function ListingCard({ listing, currentUser, onEdit, onDelete }) {
-  const { isOwner } = getListingPermissions(listing, currentUser)
+export function ListingCard({ listing, currentUser, onDelete, onEdit, onOrder }) {
+  const { canBuyOrOffer, isLoggedIn, isOwner } = getListingPermissions(listing, currentUser)
   const previewText = listing.description?.trim() || 'Open this listing to see more details.'
 
   return (
@@ -59,12 +59,17 @@ export function ListingCard({ listing, currentUser, onEdit, onDelete }) {
             </Button>
           </div>
         ) : (
-          <Link
-            to={`/listings/${listing.id}`}
-            className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-brand-700 transition hover:text-brand-800"
-          >
-            View Details
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/listings/${listing.id}`}
+              className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-brand-700 transition hover:text-brand-800"
+            >
+              View Details
+            </Link>
+            <Button size="sm" onClick={() => onOrder?.(listing)} disabled={!isLoggedIn || !canBuyOrOffer}>
+              Place Order
+            </Button>
+          </div>
         )}
       </div>
     </Card>

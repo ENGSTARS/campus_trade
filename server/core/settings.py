@@ -10,18 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f@(y_n)o*0l&uz7g=nl^ge&we6k=ch&u5pqh@1vuw$8yxq2y^-'
 
 ALLOWED_HOSTS = []
 
@@ -94,36 +88,62 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-from decouple import config
+from decouple import Config, RepositoryEnv, UndefinedValueError
+
+
+DEFAULT_DEV_SECRET_KEY = 'django-insecure-f@(y_n)o*0l&uz7g=nl^ge&we6k=ch&u5pqh@1vuw$8yxq2y^-'
+ENV_PATHS = (BASE_DIR / '.env', BASE_DIR.parent / '.env')
+
+
+def read_env(option, default=None, cast=None):
+    raw_value = os.getenv(option)
+    if raw_value is not None:
+        if cast is None:
+            return raw_value
+        return cast(raw_value)
+
+    for env_path in ENV_PATHS:
+        if not env_path.exists():
+            continue
+
+        try:
+            env_config = Config(RepositoryEnv(str(env_path)))
+            if cast is None:
+                value = env_config(option, default=default)
+            else:
+                value = env_config(option, default=default, cast=cast)
+        except UndefinedValueError:
+            continue
+        else:
+            return value
+
+    if default is not None:
+        return default
+
+    raise UndefinedValueError(
+        f'{option} not found. Add it to an environment variable, '
+        f'{BASE_DIR / ".env"}, or {BASE_DIR.parent / ".env"}.'
+    )
 
 
 def read_debug_flag():
-    raw_value = os.getenv('DEBUG')
-    if raw_value is None:
-        try:
-            return config('DEBUG', default=True, cast=bool)
-        except ValueError:
-            return True
-
-    normalized = str(raw_value).strip().lower()
-    if normalized in {'1', 'true', 'yes', 'on', 'debug', 'dev', 'development'}:
+    try:
+        return read_env('DEBUG', default=True, cast=bool)
+    except ValueError:
         return True
-    if normalized in {'0', 'false', 'no', 'off', 'release', 'prod', 'production'}:
-        return False
-    return True
 
 
-SECRET_KEY = config('SECRET_KEY')
 DEBUG = read_debug_flag()
+SECRET_KEY = read_env('SECRET_KEY', default=DEFAULT_DEV_SECRET_KEY if DEBUG else None)
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='campustrade_db'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+        'NAME': read_env('DB_NAME', default='campustrade_db'),
+        'USER': read_env('DB_USER', default='postgres'),
+        'PASSWORD': read_env('DB_PASSWORD', default=''),
+        'HOST': read_env('DB_HOST', default='localhost'),
+        'PORT': read_env('DB_PORT', default='5432'),
     }
 }
 

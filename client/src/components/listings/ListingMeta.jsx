@@ -9,7 +9,6 @@ import { SaveWishlistButton } from './SaveWishlistButton'
 export function ListingMeta({
   listing,
   currentUser,
-  onOffer,
   onOrder,
   onReport,
   onReview,
@@ -18,7 +17,7 @@ export function ListingMeta({
   onMarkStatus,
   onMessageSeller,
 }) {
-  const { isLoggedIn, isOwner, isAvailable, isSecondHand, isNew, canBuyOrOffer } = getListingPermissions(
+  const { isLoggedIn, isOwner, isAvailable, canBuyOrOffer } = getListingPermissions(
     listing,
     currentUser,
   )
@@ -79,18 +78,9 @@ export function ListingMeta({
             Login to Continue
           </Link>
         ) : (
-          <>
-            {isSecondHand ? (
-              <Button onClick={onOffer} disabled={!canBuyOrOffer}>
-                Make Offer
-              </Button>
-            ) : null}
-            {isNew ? (
-              <Button onClick={onOrder} disabled={!canBuyOrOffer}>
-                Place Order
-              </Button>
-            ) : null}
-          </>
+          <Button onClick={onOrder} disabled={!canBuyOrOffer}>
+            Place Order
+          </Button>
         )}
 
         {!isOwner && isLoggedIn ? (

@@ -37,8 +37,19 @@ function hasStoredAuth() {
 
 export const authApi = {
   async register(payload) {
+    const normalizedPayload = {
+      email: payload.email,
+      password: payload.password,
+      confirm_password: payload.confirmPassword,
+      full_name: payload.fullName,
+      campus: payload.campus,
+    }
+
+    if (payload.bio?.trim()) normalizedPayload.bio = payload.bio.trim()
+    if (payload.contact?.trim()) normalizedPayload.contact = payload.contact.trim()
+
     return withFallback(
-      () => axiosClient.post('/auth/register/', payload),
+      () => axiosClient.post('/register/', normalizedPayload),
       {
         user: {
           ...mockProfile,
