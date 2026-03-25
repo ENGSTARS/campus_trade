@@ -1,4 +1,10 @@
+import io
+import tempfile
+from pathlib import Path
+
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -261,3 +267,44 @@ class MessagingFlowTests(APITestCase):
             ConversationParticipant.objects.filter(conversation_id=conversation_id, user=self.seller).exists()
         )
         self.assertTrue(Conversation.objects.filter(pk=conversation_id).exists())
+
+
+class SeedUniversityEmailsCommandTests(TestCase):
+    def test_command_creates_emails_from_flags(self):
+        stdout = io.StringIO()
+
+        call_command(
+            "seed_university_emails",
+            "--email",
+            "student1@campustrade.edu",
+            "--email",
+            "student2@campustrade.edu",
+            "--campus",
+            "Main Campus",
+            stdout=stdout,
+        )
+
+        self.assertTrue(UniversityEmail.objects.filter(email="student1@campustrade.edu", campus="Main Campus").exists())
+        self.assertTrue(UniversityEmail.objects.filter(email="student2@campustrade.edu", campus="Main Campus").exists())
+        self.assertIn("Created: 2", stdout.getvalue())
+
+    def test_command_updates_existing_rows_from_csv(self):
+        UniversityEmail.objects.create(
+            email="existing@campustrade.edu",
+            full_name="Old Name",
+            campus="Old Campus",
+        )
+
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8") as handle:
+            handle.write("email,full_name,campus\n")
+            handle.write("existing@campustrade.edu,Updated Name,Main Campus\n")
+            csv_path = handle.name
+
+        try:
+            call_command("seed_university_emails", "--file", csv_path, "--update-existing")
+        finally:
+            Path(csv_path).unlink(missing_ok=True)
+
+        seeded = UniversityEmail.objects.get(email="existing@campustrade.edu")
+        self.assertEqual(seeded.full_name, "Updated Name")
+        self.assertEqual(seeded.campus, "Main Campus")
