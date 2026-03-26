@@ -52,9 +52,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         if not UNIVERSITY_EMAIL_REGEX.match(email):
             raise serializers.ValidationError({"email": "Use a valid university email"})
         approved_email = UniversityEmail.objects.filter(email__iexact=email).first()
-        if not approved_email:
-            raise serializers.ValidationError({"email": "You are not a university student"})
-        if approved_email.is_registered or User.objects.filter(email__iexact=email).exists():
+        if approved_email and approved_email.is_registered:
+            raise serializers.ValidationError({"email": "This university email is already registered"})
+        if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError({"email": "This university email is already registered"})
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError("Passwords do not match")
@@ -82,7 +82,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         profile.contact = contact
         profile.save()
 
-        approved_email = UniversityEmail.objects.get(email__iexact=user.email)
+        approved_email, _ = UniversityEmail.objects.get_or_create(
+            email__iexact=user.email,
+            defaults={
+                "email": user.email,
+                "full_name": full_name,
+                "campus": campus,
+            },
+        )
         approved_email.linked_user = user
         approved_email.is_registered = True
         if full_name and not approved_email.full_name:
