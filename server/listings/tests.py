@@ -55,16 +55,21 @@ class ListingMutationTests(APITestCase):
         self.listing.refresh_from_db()
         self.assertFalse(self.listing.is_active)
 
+    def test_deleted_listing_is_hidden_from_public_detail_view(self):
+        self.client.force_authenticate(user=self.seller)
+        self.client.delete(f"/api/listings/{self.listing.id}/")
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get(f"/api/listings/{self.listing.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_non_owner_cannot_delete_listing(self):
         self.client.force_authenticate(user=self.buyer)
 
         response = self.client.delete(f"/api/listings/{self.listing.id}/")
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        error_message = response.data["error"]
-        if isinstance(error_message, list):
-            error_message = error_message[0]
-        self.assertEqual(str(error_message), "You can only modify your own listings.")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_ordering_last_unit_marks_listing_sold(self):
         self.client.force_authenticate(user=self.buyer)

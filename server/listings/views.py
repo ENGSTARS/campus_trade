@@ -105,7 +105,6 @@ class MyListingsView(generics.ListAPIView):
 
 # ── GET /api/listings/:id/   PATCH   DELETE ──────────────────────
 class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset         = Listing.objects.all()
     serializer_class = ListingSerializer
 
     def get_permissions(self):
@@ -115,6 +114,12 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+    def get_queryset(self):
+        base_queryset = Listing.objects.all()
+        if self.request.method in {'PATCH', 'PUT', 'DELETE'}:
+            return base_queryset.filter(seller=self.request.user, is_active=True)
+        return base_queryset.filter(is_active=True)
 
     def get_object(self):
         instance = super().get_object()
